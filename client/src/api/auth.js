@@ -22,3 +22,14 @@ const request = async (path, payload) => {
 export const loginUser = (payload) => request("/auth/login", payload);
 
 export const signupUser = (payload) => request("/auth/signup", payload);
+
+export const forgotPassword = (payload) => request("/auth/forgot-password", payload);
+
+export const resetPassword = (payload, token) => 
+  fetch(`${API_BASE_URL}/auth/reset-password/${token}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  }).then(res => res.json());
