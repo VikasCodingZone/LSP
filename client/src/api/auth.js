@@ -22,3 +22,10 @@ const request = async (path, payload) => {
 export const loginUser = (payload) => request("/auth/login", payload);
 
 export const signupUser = (payload) => request("/auth/signup", payload);
+
+export const forgotPassword = (payload) => request("/auth/forgot-password", payload);
+
+export const verifyOtp = (payload) => request("/auth/verify-otp", payload);
+
+export const resetPassword = (payload) => request("/auth/reset-password", payload);
+
