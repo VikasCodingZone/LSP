@@ -4,6 +4,8 @@ const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
 const { sendOTPEmail, sendPasswordResetSuccessEmail } = require("../utils/email");
 
+const crypto = require("crypto");
+const transporter = require("../services/email.service");
 
 // SIGNUP
 exports.signup = async (req, res) => {
@@ -304,4 +306,3 @@ exports.resetPassword = async (req, res) => {
     });
   }
 };
-

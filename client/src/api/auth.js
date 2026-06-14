@@ -28,4 +28,3 @@ export const forgotPassword = (payload) => request("/auth/forgot-password", payl
 export const verifyOtp = (payload) => request("/auth/verify-otp", payload);
 
 export const resetPassword = (payload) => request("/auth/reset-password", payload);
-

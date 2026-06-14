@@ -55,7 +55,6 @@ function ResetPassword({ setPage, email }) {
       setIsSubmitting(false);
     }
   };
-
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
       <button

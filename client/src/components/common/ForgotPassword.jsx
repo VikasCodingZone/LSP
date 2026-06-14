@@ -36,7 +36,6 @@ function ForgotPassword({ setPage, setForgotPasswordEmail }) {
       setIsSubmitting(false);
     }
   };
-
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
       <button
