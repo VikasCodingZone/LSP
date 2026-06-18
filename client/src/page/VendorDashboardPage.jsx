@@ -1,0 +1,56 @@
+import { useState } from "react";
+import VendorAppbar from "./VendorAppbar";
+import { vendorPageCopy } from "./VendorDashboardData";
+import VendorDashboardHomePage from "./VendorDashboardHomePage";
+import VendorQrCodePage from "./VendorQrCodePage";
+import VendorSettingsPage from "./VendorSettingsPage";
+import VendorSidebar from "./VendorSidebar";
+import VendorTransactionsPage from "./VendorTransactionsPage";
+
+function VendorDashboardPage({ setPage }) {
+  const [activeView, setActiveView] = useState("dashboard");
+
+  const handleExit = () => {
+    localStorage.removeItem("cpacToken");
+    localStorage.removeItem("cpacUserType");
+    setPage("login");
+  };
+
+  const [pageTitle, pageSubtitle] = vendorPageCopy[activeView] || vendorPageCopy.dashboard;
+  const appbarTitle =
+    activeView === "qr"
+      ? "QR Code Management"
+      : activeView === "transactions"
+        ? "Transactions"
+        : pageTitle;
+
+  return (
+    <div className="vendor-dashboard-page">
+      <header className="vendor-page-topbar">
+        <h1>{pageTitle}</h1>
+        <p>{pageSubtitle}</p>
+      </header>
+
+      <div className="vendor-shell">
+        <VendorSidebar
+          activeView={activeView}
+          onChangeView={setActiveView}
+          onLogout={handleExit}
+        />
+
+        <main className="vendor-content">
+          <VendorAppbar title={appbarTitle} />
+
+          {activeView === "dashboard" && (
+            <VendorDashboardHomePage onShowTransactions={() => setActiveView("transactions")} />
+          )}
+          {activeView === "qr" && <VendorQrCodePage />}
+          {activeView === "transactions" && <VendorTransactionsPage />}
+          {activeView === "settings" && <VendorSettingsPage />}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default VendorDashboardPage;

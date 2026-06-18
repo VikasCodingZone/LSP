@@ -1,14 +1,37 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Button from "./Button";
-import { verifyOtp } from "../../api/auth";
+import { forgotPassword, verifyOtp } from "../../api/auth";
+
+const OTP_TIMER_SECONDS = 5 * 60;
+
+const formatTime = (seconds) => {
+  const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const remainingSeconds = (seconds % 60).toString().padStart(2, "0");
+
+  return `${minutes}:${remainingSeconds}`;
+};
 
 function VerifyOTP({ setPage, email }) {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [status, setStatus] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
-  const [resendDisabled, setResendDisabled] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(OTP_TIMER_SECONDS);
   const inputRefs = useRef([]);
+  const resendDisabled = secondsRemaining > 0 || isResending;
+
+  useEffect(() => {
+    if (secondsRemaining <= 0) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setSecondsRemaining((currentSeconds) => Math.max(currentSeconds - 1, 0));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [secondsRemaining]);
 
   const handleChange = (value, index) => {
     if (value.match(/^[0-9]?$/)) {
@@ -55,26 +78,65 @@ function VerifyOTP({ setPage, email }) {
   };
 
   const handleResendOtp = async () => {
-    setResendDisabled(true);
+    if (resendDisabled) {
+      return;
+    }
+
+    setIsResending(true);
     setResendMessage("Sending new OTP...");
     
     try {
-      const { forgotPassword } = await import("../../api/auth");
       await forgotPassword({ email });
       setOtp(["", "", "", "", "", ""]);
+      setSecondsRemaining(OTP_TIMER_SECONDS);
       setResendMessage("New OTP sent to your email!");
       inputRefs.current[0]?.focus();
-      
-      // Re-enable after 30 seconds
-      setTimeout(() => {
-        setResendDisabled(false);
-        setResendMessage("");
-      }, 30000);
     } catch (error) {
-      setResendMessage("Failed to resend OTP");
-      setResendDisabled(false);
+      setResendMessage(error.message || "Failed to resend OTP");
+    } finally {
+      setIsResending(false);
     }
   };
+
+  useEffect(() => {
+    if (!resendMessage || isResending) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setResendMessage("");
+    }, 3000);
+
+    return () => window.clearTimeout(timer);
+  }, [isResending, resendMessage]);
+
+  if (!email) {
+    return (
+      <div className="auth-form">
+        <button
+          className="back-button"
+          type="button"
+          onClick={() => setPage("forgot")}
+        >
+          <span aria-hidden="true">←</span>
+          Back
+        </button>
+        <h1>Verify Code</h1>
+        <p>Please request a reset code first.</p>
+        <button className="primary-btn" type="button" onClick={() => setPage("forgot")}>
+          Send Reset Code
+        </button>
+      </div>
+    );
+  }
+
+  const timerText = secondsRemaining > 0
+    ? `Code expires in ${formatTime(secondsRemaining)}`
+    : "Code expired. Resend OTP is now active.";
+
+  const resendText = isResending ? "Sending..." : "Resend OTP";
+  const displayedResendMessage = resendMessage
+    || (secondsRemaining === 0 ? "Code expired. You can resend OTP now." : "");
 
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
@@ -111,6 +173,10 @@ function VerifyOTP({ setPage, email }) {
 
       <Button text={isSubmitting ? "Verifying..." : "Verify Code"} disabled={isSubmitting} />
 
+      <p className={`otp-timer ${secondsRemaining === 0 ? "expired" : ""}`}>
+        {timerText}
+      </p>
+
       {status && <p className="form-status">{status}</p>}
 
       <div className="resend-section">
@@ -121,11 +187,11 @@ function VerifyOTP({ setPage, email }) {
           onClick={handleResendOtp}
           disabled={resendDisabled}
         >
-          Resend OTP
+          {resendText}
         </button>
-        {resendMessage && (
-          <p className={`resend-message ${resendDisabled ? "loading" : "success"}`}>
-            {resendMessage}
+        {displayedResendMessage && (
+          <p className={`resend-message ${isResending ? "loading" : "success"}`}>
+            {displayedResendMessage}
           </p>
         )}
       </div>

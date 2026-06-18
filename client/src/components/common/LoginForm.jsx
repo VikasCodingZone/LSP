@@ -27,7 +27,9 @@ function LoginForm({ setPage }) {
     try {
       const data = await loginUser(form);
       localStorage.setItem("cpacToken", data.token);
+      localStorage.setItem("cpacUserType", data.user?.accountType || "student");
       setStatus("Login successful.");
+      setPage(data.user?.accountType === "vendor" ? "vendor-dashboard" : "dashboard");
     } catch (error) {
       setStatus(error.message);
     } finally {
