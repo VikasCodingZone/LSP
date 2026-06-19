@@ -26,6 +26,12 @@ const userSchema = new mongoose.Schema(
       default: "student",
     },
 
+    phone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     isVerified: {
       type: Boolean,
       default: false,

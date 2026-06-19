@@ -6,11 +6,36 @@ import StudentTransactionsPage from "./StudentTransactionsPage";
 import { transactions } from "./StudentDashboardData";
 import { Icon } from "./StudentIcon";
 
+const getStoredStudent = () => {
+  try {
+    const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+
+    return {
+      id: storedUser._id || storedUser.id || "",
+      name: storedUser.name || "",
+      email: storedUser.email || "",
+      phone: storedUser.phone || "",
+      accountType: storedUser.accountType || "student",
+    };
+  } catch {
+    return {
+      id: "",
+      name: "",
+      email: "",
+      phone: "",
+      accountType: "student",
+    };
+  }
+};
+
 function StudentDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
+  const [student, setStudent] = useState(getStoredStudent);
 
   const handleExit = () => {
     localStorage.removeItem("cpacToken");
+    localStorage.removeItem("cpacUserType");
+    localStorage.removeItem("cpacUser");
     setPage("login");
   };
 
@@ -25,10 +50,11 @@ function StudentDashboardPage({ setPage }) {
     scan: ["Scan to Pay", "QR code scanner for quick payments"],
     transactions: ["Transaction History", "View all past transactions"],
     addMoney: ["Add Money Request", "Request wallet balance top-up"],
-    profile: ["Student Profile", "Manage profile and security settings"],
+    profile: ["Student Profile", "Manage your personal information"],
   };
 
   const [pageTitle, pageSubtitle] = pageCopy[activeView] || pageCopy.dashboard;
+  const displayName = student.name.trim() || "Student";
 
   return (
     <div className="student-dashboard-page">
@@ -88,7 +114,7 @@ function StudentDashboardPage({ setPage }) {
           </button>
         </aside>
 
-        <main className="student-content">
+        <main className={activeView === "profile" ? "student-content student-profile-content" : "student-content"}>
           {activeView === "dashboard" && (
             <>
               <section className="balance-panel" aria-label="Wallet balance">
@@ -176,9 +202,14 @@ function StudentDashboardPage({ setPage }) {
           )}
 
           {activeView === "scan" && <StudentScanPayPage />}
-          {activeView === "transactions" && <StudentTransactionsPage />}
-          {activeView === "addMoney" && <StudentAddMoneyPage />}
-          {activeView === "profile" && <StudentProfilePage />}
+          {activeView === "transactions" && <StudentTransactionsPage displayName={displayName} />}
+          {activeView === "addMoney" && <StudentAddMoneyPage displayName={displayName} />}
+          {activeView === "profile" && (
+            <StudentProfilePage
+              initialStudent={student}
+              onProfileChange={setStudent}
+            />
+          )}
         </main>
       </div>
     </div>

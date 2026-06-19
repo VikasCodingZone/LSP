@@ -534,6 +534,7 @@
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   min-height: calc(100svh - 112px);
+  align-items: stretch;
 }
 
 .student-sidebar {
@@ -542,9 +543,11 @@
   justify-content: space-between;
   position: sticky;
   top: 0;
+  height: calc(100svh - 112px);
   min-height: calc(100svh - 112px);
   background: #0f1228;
   color: #ffffff;
+  overflow: hidden;
 }
 
 .student-nav {
@@ -596,6 +599,13 @@
   min-width: 0;
   padding: 0 36px 34px 34px;
   background: #ffffff;
+}
+
+.student-profile-content {
+  display: grid;
+  align-items: center;
+  min-height: calc(100svh - 112px);
+  padding-bottom: 0;
 }
 
 .balance-panel {
@@ -1414,7 +1424,6 @@
   gap: 34px;
   width: min(1248px, 100%);
   margin: 0 auto;
-  padding-bottom: 40px;
 }
 
 .profile-overview-card,
@@ -1427,29 +1436,29 @@
 .profile-overview-card {
   display: grid;
   justify-items: center;
-  min-height: 418px;
-  padding: 28px 34px 36px;
+  min-height: 396px;
+  padding: 26px 34px 32px;
   text-align: center;
 }
 
 .profile-large-avatar {
   display: grid;
   place-items: center;
-  width: 134px;
-  height: 134px;
+  width: 124px;
+  height: 124px;
   border-radius: 999px;
   color: #ffffff;
   background: #2f43b8;
 }
 
 .profile-large-avatar svg {
-  width: 68px;
-  height: 68px;
+  width: 62px;
+  height: 62px;
   stroke-width: 1.8;
 }
 
 .profile-overview-card h2 {
-  margin: 28px 0 10px;
+  margin: 24px 0 10px;
   color: #080f2d;
   font-size: 1.55rem;
   line-height: 1.1;
@@ -1466,8 +1475,8 @@
 
 .profile-wallet-summary {
   width: 100%;
-  margin-top: 26px;
-  padding-top: 26px;
+  margin-top: 24px;
+  padding-top: 24px;
   border-top: 1px solid #e3e9f2;
 }
 
@@ -1496,11 +1505,11 @@
 }
 
 .profile-settings-card {
-  padding: 30px 34px 34px;
+  padding: 28px 34px 30px;
 }
 
 .profile-settings-card h2 {
-  margin: 0 0 28px;
+  margin: 0 0 24px;
   color: #080f2d;
   font-size: 1.45rem;
   line-height: 1.1;
@@ -1509,7 +1518,7 @@
 
 .profile-settings-card label {
   display: block;
-  margin: 22px 0 12px;
+  margin: 18px 0 10px;
   color: #10172f;
   font-size: 1rem;
   line-height: 1.2;
@@ -1524,7 +1533,7 @@
   display: flex;
   align-items: center;
   gap: 18px;
-  min-height: 68px;
+  min-height: 62px;
   border: 1px solid #cfd8e6;
   border-radius: 10px;
   padding: 0 18px;
@@ -1557,8 +1566,8 @@
 
 .profile-primary-button {
   width: 100%;
-  min-height: 66px;
-  margin-top: 22px;
+  min-height: 62px;
+  margin-top: 20px;
   border: 0;
   border-radius: 9px;
   color: #ffffff;
@@ -1567,6 +1576,23 @@
   font-size: 1.13rem;
   font-weight: 900;
   cursor: pointer;
+}
+
+.profile-primary-button:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.profile-save-status {
+  margin: 12px 0 0;
+  color: #50bf80;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.profile-save-status.error {
+  color: #f03b45;
 }
 
 .security-card {
@@ -2555,7 +2581,9 @@
   .student-sidebar {
     display: block;
     position: static;
+    height: auto;
     min-height: auto;
+    overflow: visible;
   }
 
   .student-nav {
@@ -2588,6 +2616,12 @@
 
   .student-content {
     padding: 22px 18px 34px;
+  }
+
+  .student-profile-content {
+    display: block;
+    min-height: auto;
+    padding-bottom: 34px;
   }
 
   .balance-panel {

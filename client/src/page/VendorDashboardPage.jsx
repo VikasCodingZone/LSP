@@ -13,6 +13,7 @@ function VendorDashboardPage({ setPage }) {
   const handleExit = () => {
     localStorage.removeItem("cpacToken");
     localStorage.removeItem("cpacUserType");
+    localStorage.removeItem("cpacUser");
     setPage("login");
   };
 

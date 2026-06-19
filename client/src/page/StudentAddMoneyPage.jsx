@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Icon } from "./StudentIcon";
 
-function StudentAddMoneyPage() {
+function StudentAddMoneyPage({ displayName = "Student" }) {
   const [topUpAmount, setTopUpAmount] = useState("");
 
   return (
@@ -21,8 +21,8 @@ function StudentAddMoneyPage() {
             <span />
           </button>
           <div className="profile-summary">
-            <strong>John Doe</strong>
-            <span>Administrator</span>
+            <strong>{displayName}</strong>
+            <span>Student</span>
           </div>
           <span className="profile-avatar">
             <Icon type="user" />

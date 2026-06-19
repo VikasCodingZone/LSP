@@ -1,7 +1,7 @@
 import { transactions } from "./StudentDashboardData";
 import { Icon } from "./StudentIcon";
 
-function StudentTransactionsPage() {
+function StudentTransactionsPage({ displayName = "Student" }) {
   return (
     <section className="transaction-history-view" aria-label="Transaction history">
       <div className="history-appbar">
@@ -19,8 +19,8 @@ function StudentTransactionsPage() {
             <span />
           </button>
           <div className="profile-summary">
-            <strong>John Doe</strong>
-            <span>Administrator</span>
+            <strong>{displayName}</strong>
+            <span>Student</span>
           </div>
           <span className="profile-avatar">
             <Icon type="user" />

@@ -1,14 +1,20 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5050/api/v1";
 
-const request = async (path, payload) => {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
+const request = async (path, payload, options = {}) => {
+  const requestOptions = {
+    method: options.method || "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
     },
-    body: JSON.stringify(payload),
-  });
+  };
+
+  if (payload !== undefined) {
+    requestOptions.body = JSON.stringify(payload);
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, requestOptions);
 
   const data = await response.json();
 
@@ -28,3 +34,9 @@ export const forgotPassword = (payload) => request("/auth/forgot-password", payl
 export const verifyOtp = (payload) => request("/auth/verify-otp", payload);
 
 export const resetPassword = (payload) => request("/auth/reset-password", payload);
+
+export const getProfile = (token) =>
+  request("/auth/profile", undefined, { method: "GET", token });
+
+export const updateProfile = (payload, token) =>
+  request("/auth/profile", payload, { method: "PUT", token });

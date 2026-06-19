@@ -26,10 +26,13 @@ function LoginForm({ setPage }) {
 
     try {
       const data = await loginUser(form);
+      const safeUser = { ...(data.user || {}) };
+      delete safeUser.password;
       localStorage.setItem("cpacToken", data.token);
-      localStorage.setItem("cpacUserType", data.user?.accountType || "student");
+      localStorage.setItem("cpacUserType", safeUser.accountType || "student");
+      localStorage.setItem("cpacUser", JSON.stringify(safeUser));
       setStatus("Login successful.");
-      setPage(data.user?.accountType === "vendor" ? "vendor-dashboard" : "dashboard");
+      setPage(safeUser.accountType === "vendor" ? "vendor-dashboard" : "dashboard");
     } catch (error) {
       setStatus(error.message);
     } finally {
