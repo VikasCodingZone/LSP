@@ -7,8 +7,24 @@ import VendorSettingsPage from "./VendorSettingsPage";
 import VendorSidebar from "./VendorSidebar";
 import VendorTransactionsPage from "./VendorTransactionsPage";
 
+const getStoredVendor = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+    return {
+      name: user.name || "Campus Cafe",
+      email: user.email || "vendor@campus.edu",
+    };
+  } catch {
+    return {
+      name: "Campus Cafe",
+      email: "vendor@campus.edu",
+    };
+  }
+};
+
 function VendorDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
+  const [vendor, setVendor] = useState(getStoredVendor);
 
   const handleExit = () => {
     localStorage.removeItem("cpacToken");
@@ -40,14 +56,16 @@ function VendorDashboardPage({ setPage }) {
         />
 
         <main className="vendor-content">
-          <VendorAppbar title={appbarTitle} />
+          <VendorAppbar title={appbarTitle} vendor={vendor} />
 
           {activeView === "dashboard" && (
             <VendorDashboardHomePage onShowTransactions={() => setActiveView("transactions")} />
           )}
           {activeView === "qr" && <VendorQrCodePage />}
           {activeView === "transactions" && <VendorTransactionsPage />}
-          {activeView === "settings" && <VendorSettingsPage />}
+          {activeView === "settings" && (
+            <VendorSettingsPage vendor={vendor} onProfileChange={setVendor} />
+          )}
         </main>
       </div>
     </div>

@@ -1,6 +1,9 @@
 import { Icon } from "./VendorIcon";
 
-function VendorAppbar({ title }) {
+function VendorAppbar({ title, vendor = {} }) {
+  const displayName = vendor.name || "Campus Cafe";
+  const displayEmail = vendor.email || "vendor@campus.edu";
+
   return (
     <div className="vendor-appbar">
       <div>
@@ -17,8 +20,8 @@ function VendorAppbar({ title }) {
           <span />
         </button>
         <div className="vendor-user-summary">
-          <strong>Campus Cafe</strong>
-          <span>Administrator</span>
+          <strong>{displayName}</strong>
+          <span>{displayEmail}</span>
         </div>
         <span className="vendor-avatar">
           <Icon type="user" />
