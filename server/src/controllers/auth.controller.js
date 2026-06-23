@@ -11,9 +11,27 @@ const transporter = require("../services/email.service");
 exports.signup = async (req, res) => {
   try {
     const { name, email, password, accountType } = req.body;
+    const requestedAccountType = String(accountType || "student").toLowerCase();
+    const normalizedAccountType = ["student", "vendor"].includes(requestedAccountType)
+      ? requestedAccountType
+      : "student";
+
+    if (requestedAccountType === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin accounts cannot be created from signup",
+      });
+    }
+
+    if (!email || !password || !name) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, and password are required",
+      });
+    }
 
     const existingUser = await User.findOne({
-      email,
+      email: email.toLowerCase().trim(),
     });
 
     if (existingUser) {
@@ -30,9 +48,9 @@ exports.signup = async (req, res) => {
 
     const user = await User.create({
       name,
-      email,
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
-      accountType,
+      accountType: normalizedAccountType,
     });
 
     res.status(201).json({

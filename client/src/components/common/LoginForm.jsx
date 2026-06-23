@@ -32,7 +32,13 @@ function LoginForm({ setPage }) {
       localStorage.setItem("cpacUserType", safeUser.accountType || "student");
       localStorage.setItem("cpacUser", JSON.stringify(safeUser));
       setStatus("Login successful.");
-      setPage(safeUser.accountType === "vendor" ? "vendor-dashboard" : "dashboard");
+      setPage(
+        safeUser.accountType === "admin"
+          ? "admin-dashboard"
+          : safeUser.accountType === "vendor"
+            ? "vendor-dashboard"
+            : "dashboard"
+      );
     } catch (error) {
       setStatus(error.message);
     } finally {
@@ -90,6 +96,17 @@ function LoginForm({ setPage }) {
           onClick={() => setPage("register")}
         >
           Create Account
+        </button>
+      </p>
+
+      <p className="switch-text">
+        Admin access?
+        <button
+          className="link-button"
+          type="button"
+          onClick={() => setPage("admin-login")}
+        >
+          Admin Login
         </button>
       </p>
     </form>

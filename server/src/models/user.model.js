@@ -22,8 +22,20 @@ const userSchema = new mongoose.Schema(
 
     accountType: {
       type: String,
-      enum: ["student", "vendor"],
+      enum: ["student", "vendor", "admin"],
       default: "student",
+    },
+
+    walletBalance: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    vendorStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
     },
 
     phone: {
