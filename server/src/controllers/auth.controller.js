@@ -1,5 +1,6 @@
 const User = require("../models/user.model");
 const OTP = require("../models/otp.model");
+const Transaction = require("../models/transaction.model");
 const bcrypt = require("bcryptjs");
 const generateToken = require("../utils/generateToken");
 const { sendOTPEmail, sendPasswordResetSuccessEmail } = require("../utils/email");
@@ -425,6 +426,76 @@ exports.resetPassword = async (req, res) => {
       message: "Password reset successfully",
     });
 
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// Wallet request handlers
+exports.createWalletRequest = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    const { amount } = req.body;
+    const parsedAmount = Number(amount);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid amount is required",
+      });
+    }
+
+    const transaction = await Transaction.create({
+      student: userId,
+      type: "wallet_topup",
+      amount: parsedAmount,
+      status: "pending",
+      description: "Requested add money to admin",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Wallet request submitted successfully",
+      transaction,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.getStudentWalletRequests = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    const requests = await Transaction.find({
+      student: userId,
+      type: "wallet_topup",
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      requests,
+    });
   } catch (error) {
     res.status(500).json({
       success: false,

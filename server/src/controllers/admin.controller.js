@@ -220,3 +220,85 @@ exports.getTransactions = async (req, res) => {
     });
   }
 };
+
+exports.getAdminWalletRequests = async (req, res) => {
+  try {
+    const requests = await Transaction.find({ type: "wallet_topup" })
+      .populate("student", "name email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      requests,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+exports.updateWalletRequestStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // "approved" or "rejected"
+
+    if (!["approved", "rejected"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Status must be approved or rejected",
+      });
+    }
+
+    const transaction = await Transaction.findById(id);
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Request not found",
+      });
+    }
+
+    if (transaction.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: `Request is already ${transaction.status}`,
+      });
+    }
+
+    if (status === "approved") {
+      // Increment the student's wallet balance
+      const student = await User.findOneAndUpdate(
+        { _id: transaction.student, accountType: "student" },
+        { $inc: { walletBalance: transaction.amount } },
+        { new: true }
+      );
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: "Student associated with this request not found",
+        });
+      }
+
+      transaction.status = "completed";
+      transaction.createdBy = req.admin?._id || req.user?.userId;
+      await transaction.save();
+    } else {
+      transaction.status = "failed"; // rejected maps to failed in the DB schema
+      transaction.createdBy = req.admin?._id || req.user?.userId;
+      await transaction.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Request ${status} successfully`,
+      transaction,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

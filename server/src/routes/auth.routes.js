@@ -13,6 +13,8 @@ const {
   resetPassword,
   getProfile,
   updateProfile,
+  createWalletRequest,
+  getStudentWalletRequests,
 } = require(
   "../controllers/auth.controller"
 );
@@ -33,5 +35,8 @@ router.post("/reset-password", resetPassword);
 router.get("/profile", authMiddleware, getProfile);
 
 router.put("/profile", authMiddleware, updateProfile);
+
+router.post("/wallet/request", authMiddleware, createWalletRequest);
+router.get("/wallet/requests", authMiddleware, getStudentWalletRequests);
 
 module.exports = router;
