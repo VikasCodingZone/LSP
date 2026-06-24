@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./StudentIcon";
 
-function StudentScanPayPage() {
+function StudentScanPayPage({ student }) {
   const [qrScanned, setQrScanned] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState("");
 
@@ -52,7 +52,7 @@ function StudentScanPayPage() {
             <span>Vendor</span>
             <strong>Campus Cafe</strong>
             <span>Your Balance</span>
-            <strong className="balance-value">$245.80</strong>
+            <strong className="balance-value">${Number(student?.walletBalance || 0).toFixed(2)}</strong>
           </div>
           <button className="pay-now-button" type="button">
             Pay Now

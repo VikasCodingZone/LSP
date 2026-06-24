@@ -56,7 +56,11 @@ function VendorDashboardPage({ setPage }) {
         />
 
         <main className="vendor-content">
-          <VendorAppbar title={appbarTitle} vendor={vendor} />
+          <VendorAppbar
+            title={appbarTitle}
+            vendor={vendor}
+            onLogout={handleExit}
+          />
 
           {activeView === "dashboard" && (
             <VendorDashboardHomePage onShowTransactions={() => setActiveView("transactions")} />

@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { Icon } from "./VendorIcon";
+import { useState, useEffect, useRef } from "react";
+import { Icon } from "./StudentIcon";
 
 const defaultNotifications = [
-  { id: 1, text: "Payment Received: $12.50 from John Doe.", time: "June 18, 2026 at 2:30 PM" },
-  { id: 2, text: "Payment Received: $15.75 from Sarah Williams.", time: "June 18, 2026 at 1:00 PM" },
-  { id: 3, text: "Welcome to Campus Wallet! Start accepting payments.", time: "June 15, 2026 at 9:00 AM" },
+  { id: 1, text: "Wallet Recharge: Your request for $50.00 was approved.", time: "May 28, 2026 at 10:30 AM" },
+  { id: 2, text: "Payment Successful: Paid $12.50 to Campus Cafe.", time: "May 28, 2026 at 2:30 PM" },
+  { id: 3, text: "Low Balance Alert: Your balance is below $20.00.", time: "May 24, 2026 at 1:00 PM" },
+  { id: 4, text: "Welcome to LSP! Start scan & pay on campus.", time: "May 20, 2026 at 9:00 AM" },
 ];
 
-function VendorAppbar({ title, vendor = {}, onLogout }) {
+function StudentHeader({ title, dateText = "Wednesday, June 17, 2026", student, onLogout, showSearch = false }) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState(defaultNotifications);
@@ -46,20 +47,48 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
     }
   };
 
-  const displayName = vendor.name || "Campus Cafe";
-  const displayEmail = vendor.email || "vendor@campus.edu";
+  // Safe evaluation of student details
+  const getStudentInfo = () => {
+    if (student && student.name) {
+      return student;
+    }
+    try {
+      const storedUser = JSON.parse(localStorage.getItem("cpacUser") || "{}");
+      return {
+        name: storedUser.name || "Student",
+        email: storedUser.email || "student@lsp.com",
+        accountType: storedUser.accountType || "student"
+      };
+    } catch {
+      return {
+        name: "Student",
+        email: "student@lsp.com",
+        accountType: "student"
+      };
+    }
+  };
+
+  const user = getStudentInfo();
+  const displayName = user.name || "Student";
 
   return (
-    <div className="vendor-appbar">
+    <div className="history-appbar">
       <div>
         <h2>{title}</h2>
-        <p>Thursday, June 18, 2026</p>
+        <p>{dateText}</p>
       </div>
-      <div className="vendor-appbar-actions">
+      <div className="history-profile">
+        {showSearch && (
+          <label className="compact-search">
+            <Icon type="search" />
+            <input type="search" placeholder="Search..." />
+          </label>
+        )}
+
         {/* Notification Bell Wrapper */}
         <div className="notification-wrapper" ref={notifRef}>
           <button
-            className={`vendor-notification${isNotifOpen ? " active" : ""}`}
+            className={`notification-button${isNotifOpen ? " active" : ""}`}
             type="button"
             aria-label="Notifications"
             onClick={() => {
@@ -106,11 +135,11 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
               setIsNotifOpen(false);
             }}
           >
-            <div className="vendor-user-summary">
+            <div className="profile-summary">
               <strong>{displayName}</strong>
-              <span>{displayEmail}</span>
+              <span style={{ textTransform: "capitalize" }}>{user.accountType || "Student"}</span>
             </div>
-            <span className="vendor-avatar">
+            <span className="profile-avatar">
               <Icon type="user" />
             </span>
           </div>
@@ -122,10 +151,14 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
                   {displayName.charAt(0).toUpperCase()}
                 </span>
                 <strong>{displayName}</strong>
-                <span className="email">{displayEmail}</span>
+                <span className="email">{user.email || "student@lsp.com"}</span>
                 <span className="badge" style={{ textTransform: "capitalize" }}>
-                  Vendor Account
+                  {user.accountType || "student"} Account
                 </span>
+              </div>
+              <div className="profile-dropdown-balance">
+                <span>Wallet Balance</span>
+                <strong>${Number(user.walletBalance || 0).toFixed(2)}</strong>
               </div>
               <div className="profile-dropdown-actions">
                 <button className="logout-btn" type="button" onClick={handleLogoutClick}>
@@ -140,4 +173,4 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
   );
 }
 
-export default VendorAppbar;
+export default StudentHeader;

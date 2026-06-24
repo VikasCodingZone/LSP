@@ -44,3 +44,8 @@ export const addMoneyToStudent = (payload) =>
   request("/admin/add-money", payload, { method: "POST" });
 
 export const getAdminTransactions = () => request("/admin/transactions");
+
+export const getAdminWalletRequests = () => request("/admin/wallet/requests");
+
+export const updateWalletRequestStatus = (id, payload) =>
+  request(`/admin/wallet/request/${id}`, payload, { method: "PUT" });

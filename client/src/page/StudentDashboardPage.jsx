@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import StudentAddMoneyPage from "./StudentAddMoneyPage";
 import StudentProfilePage from "./StudentProfilePage";
 import StudentScanPayPage from "./StudentScanPayPage";
 import StudentTransactionsPage from "./StudentTransactionsPage";
 import { transactions } from "./StudentDashboardData";
 import { Icon } from "./StudentIcon";
+import { getProfile } from "../api/auth";
 
 const getStoredStudent = () => {
   try {
@@ -16,6 +17,7 @@ const getStoredStudent = () => {
       email: storedUser.email || "",
       phone: storedUser.phone || "",
       accountType: storedUser.accountType || "student",
+      walletBalance: storedUser.walletBalance || 0,
     };
   } catch {
     return {
@@ -31,6 +33,32 @@ const getStoredStudent = () => {
 function StudentDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
   const [student, setStudent] = useState(getStoredStudent);
+
+  const fetchLatestProfile = () => {
+    const token = localStorage.getItem("cpacToken");
+    if (!token) return;
+    getProfile(token)
+      .then((data) => {
+        if (data.success && data.user) {
+          const safeUser = { ...data.user };
+          delete safeUser.password;
+          localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+          setStudent({
+            id: safeUser._id || safeUser.id || "",
+            name: safeUser.name || "",
+            email: safeUser.email || "",
+            phone: safeUser.phone || "",
+            accountType: safeUser.accountType || "student",
+            walletBalance: safeUser.walletBalance || 0,
+          });
+        }
+      })
+      .catch((err) => console.error("Failed to fetch profile in dashboard:", err));
+  };
+
+  useEffect(() => {
+    fetchLatestProfile();
+  }, [activeView]);
 
   const handleExit = () => {
     localStorage.removeItem("cpacToken");
@@ -120,7 +148,7 @@ function StudentDashboardPage({ setPage }) {
               <section className="balance-panel" aria-label="Wallet balance">
                 <div>
                   <p>Available Balance</p>
-                  <strong>$245.80</strong>
+                  <strong>${Number(student.walletBalance || 0).toFixed(2)}</strong>
                 </div>
                 <Icon type="wallet" />
                 <div className="balance-actions">
@@ -201,9 +229,20 @@ function StudentDashboardPage({ setPage }) {
             </>
           )}
 
-          {activeView === "scan" && <StudentScanPayPage />}
-          {activeView === "transactions" && <StudentTransactionsPage displayName={displayName} />}
-          {activeView === "addMoney" && <StudentAddMoneyPage displayName={displayName} />}
+          {activeView === "scan" && <StudentScanPayPage student={student} />}
+          {activeView === "transactions" && (
+            <StudentTransactionsPage
+              student={student}
+              onLogout={handleExit}
+            />
+          )}
+          {activeView === "addMoney" && (
+            <StudentAddMoneyPage
+              student={student}
+              onLogout={handleExit}
+              refreshProfile={fetchLatestProfile}
+            />
+          )}
           {activeView === "profile" && (
             <StudentProfilePage
               initialStudent={student}

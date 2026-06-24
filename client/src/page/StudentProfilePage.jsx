@@ -12,6 +12,7 @@ const getStoredStudent = () => {
       email: storedUser.email || "",
       phone: storedUser.phone || "",
       accountType: storedUser.accountType || "student",
+      walletBalance: storedUser.walletBalance || 0,
     };
   } catch {
     return {
@@ -20,6 +21,7 @@ const getStoredStudent = () => {
       email: "",
       phone: "",
       accountType: "student",
+      walletBalance: 0,
     };
   }
 };
@@ -60,6 +62,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
           email: safeUser.email || "",
           phone: safeUser.phone || "",
           accountType: safeUser.accountType || "student",
+          walletBalance: safeUser.walletBalance || 0,
         };
 
         localStorage.setItem("cpacUser", JSON.stringify(safeUser));
@@ -125,6 +128,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
         email: safeUser.email || "",
         phone: safeUser.phone || "",
         accountType: safeUser.accountType || "student",
+        walletBalance: safeUser.walletBalance !== undefined ? safeUser.walletBalance : student.walletBalance,
       };
 
       localStorage.setItem("cpacUser", JSON.stringify(safeUser));
@@ -154,7 +158,7 @@ function StudentProfilePage({ initialStudent, onProfileChange }) {
         <p>Student ID: {studentId}</p>
         <div className="profile-wallet-summary">
           <span>Wallet Balance</span>
-          <strong>$245.80</strong>
+          <strong>${Number(student.walletBalance || 0).toFixed(2)}</strong>
         </div>
       </aside>
 
