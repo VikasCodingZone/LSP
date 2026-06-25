@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   approveVendor,
   getAdminStats,
@@ -111,6 +111,13 @@ const fallbackWalletRequests = [
   },
 ];
 
+const defaultNotifications = [
+  { id: 1, text: "Wallet Recharge: Your request for $50.00 was approved.", time: "May 28, 2026 at 10:30 AM" },
+  { id: 2, text: "Payment Successful: Paid $12.50 to Campus Cafe.", time: "May 28, 2026 at 2:30 PM" },
+  { id: 3, text: "Low Balance Alert: Your balance is below $20.00.", time: "May 24, 2026 at 1:00 PM" },
+  { id: 4, text: "Welcome to Campus Wallet! Start scan & pay on campus.", time: "May 20, 2026 at 9:00 AM" },
+];
+
 function AdminDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
   const [stats, setStats] = useState(null);
@@ -122,14 +129,36 @@ function AdminDashboardPage({ setPage }) {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [walletRequests, setWalletRequests] = useState([]);
+  const [notifications, setNotifications] = useState(defaultNotifications);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [transactionTab, setTransactionTab] = useState("student");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
-  const admin = useMemo(() => {
+  const notifRef = useRef(null);
+  const profileRef = useRef(null);
+
+  const [admin, setAdmin] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("cpacUser") || "{}");
     } catch {
       return {};
     }
-  }, []);
+  });
+
+  const [profileForm, setProfileForm] = useState(() => ({
+    name: admin.name || "Admin User",
+    email: admin.email || "admin@campuswallet.com",
+    phone: admin.phone || "",
+    photo: admin.profilePicture || "",
+    accountStatus: admin.accountStatus || "Active",
+    joinDate:
+      admin.joinDate || new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      }),
+  }));
 
   const loadAdminData = useCallback(async (query = "") => {
     setIsLoading(true);
@@ -177,6 +206,32 @@ function AdminDashboardPage({ setPage }) {
     return () => window.clearTimeout(timer);
   }, [loadAdminData]);
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (notifRef.current && !notifRef.current.contains(event.target)) {
+        setIsNotifOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    }
+
+    function handleEscape(event) {
+      if (event.key === "Escape") {
+        setIsNotifOpen(false);
+        setIsProfileOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
   const handleSearch = (event) => {
     event.preventDefault();
     loadAdminData(search);
@@ -214,6 +269,42 @@ function AdminDashboardPage({ setPage }) {
     localStorage.removeItem("cpacUserType");
     localStorage.removeItem("cpacUser");
     setPage("admin-login");
+  };
+
+  const handleClearNotif = () => {
+    setNotifications([]);
+  };
+
+  const handleProfileChange = (event) => {
+    const { name, value } = event.target;
+    setProfileForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleProfileImage = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProfileForm((prev) => ({ ...prev, photo: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleProfileSave = (event) => {
+    event.preventDefault();
+    const updatedAdmin = {
+      ...admin,
+      name: profileForm.name,
+      email: profileForm.email,
+      phone: profileForm.phone,
+      profilePicture: profileForm.photo,
+      accountStatus: profileForm.accountStatus,
+      joinDate: profileForm.joinDate,
+    };
+    setAdmin(updatedAdmin);
+    localStorage.setItem("cpacUser", JSON.stringify(updatedAdmin));
+    setIsEditingProfile(false);
+    setMessage("Profile updated successfully.");
   };
 
   const today = new Date().toLocaleDateString("en-US", {
@@ -255,19 +346,40 @@ function AdminDashboardPage({ setPage }) {
   ];
 
   const recentRows = transactions.length
-    ? transactions.slice(0, 4).map((transaction, index) => [
-        `TXN${String(index + 1).padStart(3, "0")}`,
-        transaction.student?.name || "-",
-        transaction.vendor?.name || "Wallet Top-up",
-        formatMoney(transaction.amount),
-        transaction.status || "Completed",
-        new Date(transaction.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      ])
+    ? transactions.slice(0, 4).map((transaction, index) => {
+        const statusText = transaction.status || "Completed";
+        return [
+          `TXN${String(index + 1).padStart(3, "0")}`,
+          transaction.student?.name || "-",
+          transaction.vendor?.name || "Wallet Top-up",
+          formatMoney(transaction.amount),
+          <span className={`transaction-status ${String(statusText).toLowerCase()}`}>
+            {statusText}
+          </span>,
+          new Date(transaction.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        ];
+      })
     : fallbackTransactions;
   const visibleStudents = students.length ? students : fallbackStudents;
+  const filteredStudents = visibleStudents.filter((student, index) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+
+    const studentId = student._id?.startsWith("STU")
+      ? student._id
+      : `STU${String(index + 12345)}`;
+
+    return [
+      student.name,
+      student.email,
+      student.phone,
+      studentId,
+    ].some((value) => String(value || "").toLowerCase().includes(query));
+  });
+
   const studentTotalBalance = students.length
     ? students.reduce((total, student) => total + Number(student.walletBalance || 0), 0)
     : 125420;
@@ -281,6 +393,23 @@ function AdminDashboardPage({ setPage }) {
     ["Avg. Balance", `$${averageStudentBalance.toFixed(2)}`],
   ];
   const visibleVendors = vendors.length ? vendors : fallbackVendors;
+  const filteredVendors = visibleVendors.filter((vendor, index) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+
+    const vendorId = vendor._id?.startsWith("V")
+      ? vendor._id
+      : `V${String(index + 1).padStart(3, "0")}`;
+
+    return [
+      vendor.name,
+      vendor.owner,
+      vendor.email,
+      vendor.phone,
+      vendorId,
+    ].some((value) => String(value || "").toLowerCase().includes(query));
+  });
+
   const getVendorSales = (vendor) => {
     if (vendor.totalSales) {
       return Number(vendor.totalSales);
@@ -305,7 +434,19 @@ function AdminDashboardPage({ setPage }) {
 
     return "Pending";
   };
+
   const pendingWalletRequests = walletRequests.filter((request) => request.status === "pending").length;
+
+  const filteredTransactions = transactions.filter((transaction) => {
+    const type = String(transaction.type || "").toLowerCase();
+    const isStudentTransaction = type.includes("student") || type.includes("wallet") || type.includes("topup") || (transaction.student && !transaction.vendor);
+    const isVendorTransaction = type.includes("vendor") || type.includes("payment") || type.includes("purchase") || transaction.vendor;
+
+    if (transactionTab === "student") {
+      return isStudentTransaction;
+    }
+    return isVendorTransaction;
+  });
 
   return (
     <div className="admin-dashboard-page">
@@ -330,8 +471,7 @@ function AdminDashboardPage({ setPage }) {
             ["vendors", "Vendors", "store"],
             ["transactions", "Transactions", "swap"],
             ["wallet", "Wallet", "wallet"],
-            ["reports", "Reports", "chart"],
-            ["settings", "Settings", "settings"],
+            ["profile", "Profile", "user"],
           ].map(([view, label, icon]) => (
             <button
               className={activeView === view ? "active" : ""}
@@ -371,26 +511,83 @@ function AdminDashboardPage({ setPage }) {
           </div>
 
           <div className="admin-navbar-actions">
-            <form className="admin-search" onSubmit={handleSearch}>
-              <AdminIcon type="search" />
-              <input
-                type="search"
-                placeholder="Search..."
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </form>
-            <button className="admin-notification" type="button" aria-label="Notifications">
-              <AdminIcon type="bell" />
-              <span />
-            </button>
-            <div className="admin-user">
-              <span>{admin.name || "Admin User"}</span>
-              <strong>Administrator</strong>
+            <div className="notification-wrapper" ref={notifRef}>
+              <button
+                className={`notification-button${isNotifOpen ? " active" : ""}`}
+                type="button"
+                aria-label="Notifications"
+                onClick={() => {
+                  setIsNotifOpen(!isNotifOpen);
+                  setIsProfileOpen(false);
+                }}
+              >
+                <AdminIcon type="bell" />
+                {notifications.length > 0 && <span />}
+              </button>
+
+              {isNotifOpen && (
+                <div className="notification-dropdown">
+                  <div className="dropdown-header">
+                    <h3>Notifications</h3>
+                    {notifications.length > 0 && (
+                      <button className="clear-btn" type="button" onClick={handleClearNotif}>
+                        Clear All
+                      </button>
+                    )}
+                  </div>
+                  <div className="notification-list">
+                    {notifications.length > 0 ? (
+                      notifications.map((notif) => (
+                        <div key={notif.id} className="notification-item">
+                          <p>{notif.text}</p>
+                          <span className="notif-time">{notif.time}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="notification-empty">No new notifications</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            <span className="admin-avatar">
-              <AdminIcon type="user" />
-            </span>
+
+            <div className="profile-wrapper" ref={profileRef}>
+              <div
+                className="profile-trigger-area"
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setIsProfileOpen(!isProfileOpen);
+                  setIsNotifOpen(false);
+                }}
+              >
+                <div className="profile-summary">
+                  <strong>{admin.name || "Admin User"}</strong>
+                  <span>Administrator</span>
+                </div>
+                <span className="profile-avatar">
+                  <AdminIcon type="user" />
+                </span>
+              </div>
+
+              {isProfileOpen && (
+                <div className="profile-dropdown">
+                  <div className="profile-dropdown-info">
+                    <span className="profile-dropdown-avatar">
+                      {(admin.name || "A").charAt(0).toUpperCase()}
+                    </span>
+                    <strong>{admin.name || "Admin User"}</strong>
+                    <span className="email">{admin.email || "admin@campuswallet.com"}</span>
+                    <span className="badge">Administrator</span>
+                  </div>
+                  <div className="profile-dropdown-actions">
+                    <button className="logout-btn" type="button" onClick={handleLogout}>
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -416,11 +613,6 @@ function AdminDashboardPage({ setPage }) {
                       </span>
                     </article>
                   ))}
-                </section>
-
-                <section className="admin-chart-grid" aria-label="Dashboard charts">
-                  <ChartPlaceholder title="Transaction Overview" text="Transaction chart visualization" />
-                  <ChartPlaceholder title="Revenue Analytics" text="Revenue chart visualization" />
                 </section>
 
                 <section className="admin-recent-section">
@@ -453,7 +645,7 @@ function AdminDashboardPage({ setPage }) {
                     <AdminIcon type="search" />
                     <input
                       type="search"
-                      placeholder="Search students..."
+                      placeholder="Search students by name, email, phone, or ID..."
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
                     />
@@ -482,37 +674,43 @@ function AdminDashboardPage({ setPage }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {visibleStudents.map((student, index) => (
-                          <tr key={student._id || student.email}>
-                            <td>{student._id?.startsWith("STU") ? student._id : `STU${String(index + 12345)}`}</td>
-                            <td>
-                              <div className="student-name-cell">
-                                <span>
-                                  <AdminIcon type="user" />
-                                </span>
-                                <div>
-                                  <strong>{student.name}</strong>
-                                  <em>{student.email}</em>
+                        {filteredStudents.map((student, index) => {
+                          const studentId = student._id?.startsWith("STU")
+                            ? student._id
+                            : `STU${String(index + 12345)}`;
+
+                          return (
+                            <tr key={student._id || student.email}>
+                              <td>{studentId}</td>
+                              <td>
+                                <div className="student-name-cell">
+                                  <span>
+                                    <AdminIcon type="user" />
+                                  </span>
+                                  <div>
+                                    <strong>{student.name}</strong>
+                                    <em>{student.email}</em>
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td>{student.phone || "-"}</td>
-                            <td className="student-balance">{`$${Number(student.walletBalance || 0).toFixed(2)}`}</td>
-                            <td>
-                              <span className="student-active-pill">Active</span>
-                            </td>
-                            <td>
-                              <button
-                                className="student-money-button"
-                                type="button"
-                                onClick={() => setActiveView("wallet")}
-                              >
-                                <span>$</span>
-                                Add Money
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td>{student.phone || "-"}</td>
+                              <td className="student-balance">{`$${Number(student.walletBalance || 0).toFixed(2)}`}</td>
+                              <td>
+                                <span className="student-active-pill">Active</span>
+                              </td>
+                              <td>
+                                <button
+                                  className="student-money-button"
+                                  type="button"
+                                  onClick={() => setActiveView("wallet")}
+                                >
+                                  <span>$</span>
+                                  Add Money
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -527,7 +725,7 @@ function AdminDashboardPage({ setPage }) {
                     <AdminIcon type="search" />
                     <input
                       type="search"
-                      placeholder="Search vendors..."
+                      placeholder="Search vendors by name, email, phone, or ID..."
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
                     />
@@ -558,7 +756,7 @@ function AdminDashboardPage({ setPage }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {visibleVendors.map((vendor, index) => {
+                        {filteredVendors.map((vendor, index) => {
                           const statusLabel = getVendorStatusLabel(vendor.vendorStatus);
                           const vendorId = vendor._id?.startsWith("V")
                             ? vendor._id
@@ -618,20 +816,145 @@ function AdminDashboardPage({ setPage }) {
               <section className="admin-panel">
                 <div className="admin-panel-heading">
                   <h2>Transaction History</h2>
-                  <span>{transactions.length} recent</span>
+                  <span>{filteredTransactions.length} recent</span>
+                </div>
+                <div className="transaction-tabs">
+                  <button
+                    type="button"
+                    className={transactionTab === "student" ? "active" : ""}
+                    onClick={() => setTransactionTab("student")}
+                  >
+                    Student Transactions
+                  </button>
+                  <button
+                    type="button"
+                    className={transactionTab === "vendor" ? "active" : ""}
+                    onClick={() => setTransactionTab("vendor")}
+                  >
+                    Vendor Transactions
+                  </button>
                 </div>
                 <AdminTable
                   columns={["Student", "Vendor", "Type", "Amount", "Status", "Date"]}
-                  rows={transactions.map((transaction) => [
-                    transaction.student?.name || "-",
-                    transaction.vendor?.name || "-",
-                    transaction.type?.replace("_", " ") || "payment",
-                    formatMoney(transaction.amount),
-                    transaction.status,
-                    new Date(transaction.createdAt).toLocaleString(),
-                  ])}
+                  rows={filteredTransactions.map((transaction) => {
+                    const statusText = transaction.status || "Completed";
+                    return [
+                      transaction.student?.name || "-",
+                      transaction.vendor?.name || "-",
+                      transaction.type?.replace("_", " ") || "payment",
+                      formatMoney(transaction.amount),
+                      <span className={`transaction-status ${String(statusText).toLowerCase()}`}>
+                        {statusText}
+                      </span>,
+                      new Date(transaction.createdAt).toLocaleString(),
+                    ];
+                  })}
                   emptyText="No transactions found."
                 />
+              </section>
+            )}
+
+            {activeView === "profile" && (
+              <section className="admin-profile-page">
+                <div className="admin-profile-grid">
+                  <section className="admin-panel admin-profile-card">
+                    <div className="admin-profile-top">
+                      <div className="admin-profile-photo">
+                        {profileForm.photo ? (
+                          <img src={profileForm.photo} alt="Profile" />
+                        ) : (
+                          <span>{(profileForm.name || "A").charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div>
+                        <h2>{profileForm.name}</h2>
+                        <p>{profileForm.email}</p>
+                        <span>Administrator</span>
+                      </div>
+                    </div>
+                    <div className="admin-profile-details">
+                      <div>
+                        <strong>Full Name</strong>
+                        <span>{profileForm.name}</span>
+                      </div>
+                      <div>
+                        <strong>Email</strong>
+                        <span>{profileForm.email}</span>
+                      </div>
+                      <div>
+                        <strong>Phone Number</strong>
+                        <span>{profileForm.phone || "Not available"}</span>
+                      </div>
+                      <div>
+                        <strong>Account Status</strong>
+                        <span>{profileForm.accountStatus}</span>
+                      </div>
+                      <div>
+                        <strong>Join Date</strong>
+                        <span>{profileForm.joinDate}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="admin-profile-edit-button"
+                      onClick={() => setIsEditingProfile(true)}
+                    >
+                      Edit Profile
+                    </button>
+                  </section>
+
+                  <section className="admin-panel admin-profile-edit-card">
+                    <div className="admin-panel-heading">
+                      <h2>Admin Profile</h2>
+                      <span>Update your account details</span>
+                    </div>
+                    {isEditingProfile ? (
+                      <form onSubmit={handleProfileSave} className="admin-profile-form">
+                        <label>
+                          Profile Photo
+                          <input type="file" accept="image/*" onChange={handleProfileImage} />
+                        </label>
+                        <label>
+                          Full Name
+                          <input
+                            type="text"
+                            name="name"
+                            value={profileForm.name}
+                            onChange={handleProfileChange}
+                          />
+                        </label>
+                        <label>
+                          Email
+                          <input
+                            type="email"
+                            name="email"
+                            value={profileForm.email}
+                            onChange={handleProfileChange}
+                          />
+                        </label>
+                        <label>
+                          Phone Number
+                          <input
+                            type="tel"
+                            name="phone"
+                            value={profileForm.phone}
+                            onChange={handleProfileChange}
+                          />
+                        </label>
+                        <div className="admin-profile-form-actions">
+                          <button type="submit">Save Changes</button>
+                          <button type="button" onClick={() => setIsEditingProfile(false)}>
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="admin-profile-empty">
+                        Click "Edit Profile" to update your name, email, phone number, or profile picture.
+                      </div>
+                    )}
+                  </section>
+                </div>
               </section>
             )}
 
@@ -727,16 +1050,6 @@ function AdminDashboardPage({ setPage }) {
                   </div>
                 </section>
               </>
-            )}
-
-            {(activeView === "reports" || activeView === "settings") && (
-              <section className="admin-panel">
-                <div className="admin-panel-heading">
-                  <h2>{pageTitle(activeView)}</h2>
-                  <span>Admin module</span>
-                </div>
-                <p className="admin-empty-copy">This section is ready for the next set of admin tools.</p>
-              </section>
             )}
           </>
         )}

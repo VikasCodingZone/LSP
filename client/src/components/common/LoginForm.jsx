@@ -33,9 +33,7 @@ function LoginForm({ setPage }) {
       localStorage.setItem("cpacUser", JSON.stringify(safeUser));
       setStatus("Login successful.");
       setPage(
-        safeUser.accountType === "admin"
-          ? "admin-dashboard"
-          : safeUser.accountType === "vendor"
+        safeUser.accountType === "vendor"
             ? "vendor-dashboard"
             : "dashboard"
       );
@@ -99,16 +97,6 @@ function LoginForm({ setPage }) {
         </button>
       </p>
 
-      <p className="switch-text">
-        Admin access?
-        <button
-          className="link-button"
-          type="button"
-          onClick={() => setPage("admin-login")}
-        >
-          Admin Login
-        </button>
-      </p>
     </form>
   );
 }

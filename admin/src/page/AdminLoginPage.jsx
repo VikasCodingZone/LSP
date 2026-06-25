@@ -23,6 +23,12 @@ function AdminLoginPage({ setPage }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setStatus("");
+
+    if (!form.email.trim() || !form.password.trim()) {
+      setStatus("Please enter your email and password.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -82,7 +88,13 @@ function AdminLoginPage({ setPage }) {
 
           <p className="switch-text">
             Student or vendor?
-            <button className="link-button" type="button" onClick={() => setPage("login")}>
+            <button
+              className="link-button"
+              type="button"
+              onClick={() => {
+                window.location.href = "http://localhost:3000/login";
+              }}
+            >
               Use regular login
             </button>
           </p>
