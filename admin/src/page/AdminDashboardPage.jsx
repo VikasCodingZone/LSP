@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   approveVendor,
   getAdminStats,
@@ -9,6 +9,7 @@ import {
   getAdminWalletRequests,
   updateWalletRequestStatus,
 } from "../api/admin";
+import { getProfile, updateProfile } from "../api/auth";
 
 const formatNumber = (value) => new Intl.NumberFormat("en-US").format(Number(value || 0));
 const formatMoney = (value) => `$${formatNumber(Math.round(Number(value || 0)))}`;
@@ -81,42 +82,41 @@ const fallbackVendors = [
   },
 ];
 
-const fallbackWalletRequests = [
-  {
-    id: "REQ001",
-    student: "John Doe",
-    studentId: "STU12345",
-    amount: 50,
-    requestDate: "May 28, 2026",
-    requestTime: "10:30 AM",
-    status: "pending",
-  },
-  {
-    id: "REQ002",
-    student: "Jane Smith",
-    studentId: "STU12346",
-    amount: 100,
-    requestDate: "May 28, 2026",
-    requestTime: "9:15 AM",
-    status: "pending",
-  },
-  {
-    id: "REQ003",
-    student: "Mike Johnson",
-    studentId: "STU12347",
-    amount: 75,
-    requestDate: "May 27, 2026",
-    requestTime: "4:45 PM",
-    status: "approved",
-  },
-];
-
 const defaultNotifications = [
   { id: 1, text: "Wallet Recharge: Your request for $50.00 was approved.", time: "May 28, 2026 at 10:30 AM" },
   { id: 2, text: "Payment Successful: Paid $12.50 to Campus Cafe.", time: "May 28, 2026 at 2:30 PM" },
   { id: 3, text: "Low Balance Alert: Your balance is below $20.00.", time: "May 24, 2026 at 1:00 PM" },
   { id: 4, text: "Welcome to Campus Wallet! Start scan & pay on campus.", time: "May 20, 2026 at 9:00 AM" },
 ];
+
+const getStoredAdmin = () => {
+  try {
+    return JSON.parse(localStorage.getItem("cpacUser") || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const buildProfileForm = (user = {}) => ({
+  name: user.name || "Admin User",
+  email: user.email || "admin@campuswallet.com",
+  phone: user.phone || "",
+  photo: user.profilePicture || "",
+  accountStatus: user.accountStatus || "Active",
+  joinDate:
+    user.joinDate ||
+    (user.createdAt
+      ? new Date(user.createdAt).toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      : new Date().toLocaleDateString("en-US", {
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })),
+});
 
 function AdminDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
@@ -125,8 +125,8 @@ function AdminDashboardPage({ setPage }) {
   const [vendors, setVendors] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [search, setSearch] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [message, setMessage] = useState({ text: "", view: "" });
+  const [error, setError] = useState({ text: "", view: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [walletRequests, setWalletRequests] = useState([]);
   const [notifications, setNotifications] = useState(defaultNotifications);
@@ -137,32 +137,54 @@ function AdminDashboardPage({ setPage }) {
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
+  const activeViewRef = useRef(activeView);
 
-  const [admin, setAdmin] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("cpacUser") || "{}");
-    } catch {
-      return {};
-    }
-  });
+  const [admin, setAdmin] = useState(getStoredAdmin);
 
-  const [profileForm, setProfileForm] = useState(() => ({
-    name: admin.name || "Admin User",
-    email: admin.email || "admin@campuswallet.com",
-    phone: admin.phone || "",
-    photo: admin.profilePicture || "",
-    accountStatus: admin.accountStatus || "Active",
-    joinDate:
-      admin.joinDate || new Date().toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      }),
-  }));
+  const [profileForm, setProfileForm] = useState(() => buildProfileForm(getStoredAdmin()));
+
+  useEffect(() => {
+    activeViewRef.current = activeView;
+  }, [activeView]);
+
+  const clearAlerts = useCallback(() => {
+    setMessage({ text: "", view: "" });
+    setError({ text: "", view: "" });
+  }, []);
+
+  const showMessage = useCallback((text) => {
+    setMessage({ text, view: activeViewRef.current });
+    setError({ text: "", view: "" });
+  }, []);
+
+  const showError = useCallback((text) => {
+    setError({ text, view: activeViewRef.current });
+    setMessage({ text: "", view: "" });
+  }, []);
+
+  useEffect(() => {
+    if (!message.text) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setMessage((current) => (current === message ? { text: "", view: "" } : current));
+    }, 3000);
+
+    return () => window.clearTimeout(timer);
+  }, [message]);
+
+  useEffect(() => {
+    if (!error.text) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setError((current) => (current === error ? { text: "", view: "" } : current));
+    }, 3000);
+
+    return () => window.clearTimeout(timer);
+  }, [error]);
 
   const loadAdminData = useCallback(async (query = "") => {
     setIsLoading(true);
-    setError("");
+    setError({ text: "", view: "" });
 
     try {
       const [statsData, studentsData, vendorsData, transactionsData, walletRequestsData] = await Promise.all([
@@ -192,11 +214,11 @@ function AdminDashboardPage({ setPage }) {
       });
       setWalletRequests(formattedRequests);
     } catch (loadError) {
-      setError(loadError.message);
+      showError(loadError.message);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -205,6 +227,28 @@ function AdminDashboardPage({ setPage }) {
 
     return () => window.clearTimeout(timer);
   }, [loadAdminData]);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      const token = localStorage.getItem("cpacToken");
+
+      if (!token) return;
+
+      try {
+        const data = await getProfile(token);
+        const safeUser = { ...(data.user || {}) };
+        delete safeUser.password;
+
+        setAdmin(safeUser);
+        setProfileForm(buildProfileForm(safeUser));
+        localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+      } catch (profileError) {
+        console.error("Failed to load admin profile:", profileError);
+      }
+    };
+
+    loadProfile();
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -238,29 +282,27 @@ function AdminDashboardPage({ setPage }) {
   };
 
   const handleVendorStatus = async (vendorId, action) => {
-    setMessage("");
-    setError("");
+    clearAlerts();
 
     try {
       const request = action === "approve" ? approveVendor : rejectVendor;
       await request(vendorId);
-      setMessage(`Vendor ${action === "approve" ? "approved" : "rejected"} successfully.`);
+      showMessage(`Vendor ${action === "approve" ? "approved" : "rejected"} successfully.`);
       await loadAdminData(search);
     } catch (statusError) {
-      setError(statusError.message);
+      showError(statusError.message);
     }
   };
 
   const handleWalletRequestStatus = async (requestId, nextStatus) => {
-    setMessage("");
-    setError("");
+    clearAlerts();
 
     try {
       await updateWalletRequestStatus(requestId, { status: nextStatus });
-      setMessage(`Money addition request ${nextStatus} successfully.`);
+      showMessage(`Money addition request ${nextStatus} successfully.`);
       await loadAdminData(search);
     } catch (statusError) {
-      setError(statusError.message);
+      showError(statusError.message);
     }
   };
 
@@ -290,21 +332,38 @@ function AdminDashboardPage({ setPage }) {
     reader.readAsDataURL(file);
   };
 
-  const handleProfileSave = (event) => {
+  const handleProfileSave = async (event) => {
     event.preventDefault();
-    const updatedAdmin = {
-      ...admin,
-      name: profileForm.name,
-      email: profileForm.email,
-      phone: profileForm.phone,
-      profilePicture: profileForm.photo,
-      accountStatus: profileForm.accountStatus,
-      joinDate: profileForm.joinDate,
-    };
-    setAdmin(updatedAdmin);
-    localStorage.setItem("cpacUser", JSON.stringify(updatedAdmin));
-    setIsEditingProfile(false);
-    setMessage("Profile updated successfully.");
+    clearAlerts();
+
+    const token = localStorage.getItem("cpacToken");
+
+    if (!token) {
+      showError("Please login again to save profile changes.");
+      return;
+    }
+
+    try {
+      const data = await updateProfile(
+        {
+          name: profileForm.name.trim(),
+          email: profileForm.email.trim(),
+          phone: profileForm.phone.trim(),
+          profilePicture: profileForm.photo,
+        },
+        token
+      );
+      const safeUser = { ...(data.user || {}) };
+      delete safeUser.password;
+
+      setAdmin(safeUser);
+      setProfileForm(buildProfileForm(safeUser));
+      localStorage.setItem("cpacUser", JSON.stringify(safeUser));
+      setIsEditingProfile(false);
+      showMessage("Profile updated successfully.");
+    } catch (saveError) {
+      showError(saveError.message);
+    }
   };
 
   const today = new Date().toLocaleDateString("en-US", {
@@ -436,6 +495,9 @@ function AdminDashboardPage({ setPage }) {
   };
 
   const pendingWalletRequests = walletRequests.filter((request) => request.status === "pending").length;
+  const adminDisplayName = admin.name || "Admin User";
+  const adminPhoto = admin.profilePicture || "";
+  const adminInitial = adminDisplayName.charAt(0).toUpperCase();
 
   const filteredTransactions = transactions.filter((transaction) => {
     const type = String(transaction.type || "").toLowerCase();
@@ -562,11 +624,15 @@ function AdminDashboardPage({ setPage }) {
                 }}
               >
                 <div className="profile-summary">
-                  <strong>{admin.name || "Admin User"}</strong>
+                  <strong>{adminDisplayName}</strong>
                   <span>Administrator</span>
                 </div>
                 <span className="profile-avatar">
-                  <AdminIcon type="user" />
+                  {adminPhoto ? (
+                    <img src={adminPhoto} alt={`${adminDisplayName} profile`} />
+                  ) : (
+                    <AdminIcon type="user" />
+                  )}
                 </span>
               </div>
 
@@ -574,9 +640,13 @@ function AdminDashboardPage({ setPage }) {
                 <div className="profile-dropdown">
                   <div className="profile-dropdown-info">
                     <span className="profile-dropdown-avatar">
-                      {(admin.name || "A").charAt(0).toUpperCase()}
+                      {adminPhoto ? (
+                        <img src={adminPhoto} alt={`${adminDisplayName} profile`} />
+                      ) : (
+                        adminInitial
+                      )}
                     </span>
-                    <strong>{admin.name || "Admin User"}</strong>
+                    <strong>{adminDisplayName}</strong>
                     <span className="email">{admin.email || "admin@campuswallet.com"}</span>
                     <span className="badge">Administrator</span>
                   </div>
@@ -591,8 +661,8 @@ function AdminDashboardPage({ setPage }) {
           </div>
         </header>
 
-        {error && <p className="admin-alert error">{error}</p>}
-        {message && <p className="admin-alert success">{message}</p>}
+        {error.text && error.view === activeView && <p className="admin-alert error">{error.text}</p>}
+        {message.text && message.view === activeView && <p className="admin-alert success">{message.text}</p>}
 
         {isLoading ? (
           <div className="admin-loading">Loading admin data...</div>
@@ -653,7 +723,7 @@ function AdminDashboardPage({ setPage }) {
                   <button
                     className="student-add-button"
                     type="button"
-                    onClick={() => setMessage("Students can be added from the signup flow.")}
+                    onClick={() => showMessage("Students can be added from the signup flow.")}
                   >
                     <span>+</span>
                     Add Student
@@ -733,7 +803,7 @@ function AdminDashboardPage({ setPage }) {
                   <button
                     className="vendor-add-button"
                     type="button"
-                    onClick={() => setMessage("Vendors can be added from the signup flow.")}
+                    onClick={() => showMessage("Vendors can be added from the signup flow.")}
                   >
                     <span>+</span>
                     Add Vendor
@@ -780,7 +850,7 @@ function AdminDashboardPage({ setPage }) {
                                   <button
                                     type="button"
                                     aria-label={`Show QR code for ${vendor.name}`}
-                                    onClick={() => setMessage(`QR tools for ${vendor.name} are ready for setup.`)}
+                                    onClick={() => showMessage(`QR tools for ${vendor.name} are ready for setup.`)}
                                   >
                                     <AdminIcon type="qr" />
                                   </button>
@@ -1060,18 +1130,6 @@ function AdminDashboardPage({ setPage }) {
 
 function pageTitle(view) {
   return view.charAt(0).toUpperCase() + view.slice(1);
-}
-
-function ChartPlaceholder({ title, text }) {
-  return (
-    <article className="admin-chart-card">
-      <h2>{title}</h2>
-      <div>
-        <AdminIcon type="trend" />
-        <span>{text}</span>
-      </div>
-    </article>
-  );
 }
 
 function AdminTable({ columns, rows, emptyText }) {

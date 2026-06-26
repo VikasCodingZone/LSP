@@ -26,3 +26,9 @@ const request = async (path, payload, options = {}) => {
 };
 
 export const adminLogin = (payload) => request("/auth/login", payload);
+
+export const getProfile = (token) =>
+  request("/auth/profile", undefined, { method: "GET", token });
+
+export const updateProfile = (payload, token) =>
+  request("/auth/profile", payload, { method: "PUT", token });

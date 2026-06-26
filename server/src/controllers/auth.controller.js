@@ -157,7 +157,7 @@ exports.getProfile = async (req, res) => {
 // UPDATE PROFILE
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, email, phone } = req.body;
+    const { name, email, phone, profilePicture } = req.body;
 
     const userId = req.user?.userId;
 
@@ -189,13 +189,19 @@ exports.updateProfile = async (req, res) => {
       });
     }
 
+    const profileUpdates = {
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone?.trim() || "",
+    };
+
+    if (profilePicture !== undefined) {
+      profileUpdates.profilePicture = profilePicture || "";
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      {
-        name: name.trim(),
-        email: normalizedEmail,
-        phone: phone?.trim() || "",
-      },
+      profileUpdates,
       {
         new: true,
         runValidators: true,
