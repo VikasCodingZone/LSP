@@ -926,59 +926,59 @@ function AdminDashboardPage({ setPage }) {
 
             {activeView === "profile" && (
               <section className="admin-profile-page">
-                <div className="admin-profile-grid">
-                  <section className="admin-panel admin-profile-card">
-                    <div className="admin-profile-top">
-                      <div className="admin-profile-photo">
-                        {profileForm.photo ? (
-                          <img src={profileForm.photo} alt="Profile" />
-                        ) : (
-                          <span>{(profileForm.name || "A").charAt(0).toUpperCase()}</span>
-                        )}
+                <div className={`admin-profile-grid ${isEditingProfile ? "is-editing" : ""}`}>
+                  {!isEditingProfile ? (
+                    <section className="admin-panel admin-profile-card">
+                      <div className="admin-profile-top">
+                        <div className="admin-profile-photo">
+                          {profileForm.photo ? (
+                            <img src={profileForm.photo} alt="Profile" />
+                          ) : (
+                            <span>{(profileForm.name || "A").charAt(0).toUpperCase()}</span>
+                          )}
+                        </div>
+                        <div>
+                          <h2>{profileForm.name}</h2>
+                          <p>{profileForm.email}</p>
+                          <span>Administrator</span>
+                        </div>
                       </div>
-                      <div>
-                        <h2>{profileForm.name}</h2>
-                        <p>{profileForm.email}</p>
-                        <span>Administrator</span>
+                      <div className="admin-profile-details">
+                        <div>
+                          <strong>Full Name</strong>
+                          <span>{profileForm.name}</span>
+                        </div>
+                        <div>
+                          <strong>Email</strong>
+                          <span>{profileForm.email}</span>
+                        </div>
+                        <div>
+                          <strong>Phone Number</strong>
+                          <span>{profileForm.phone || "Not available"}</span>
+                        </div>
+                        <div>
+                          <strong>Account Status</strong>
+                          <span>{profileForm.accountStatus}</span>
+                        </div>
+                        <div>
+                          <strong>Join Date</strong>
+                          <span>{profileForm.joinDate}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="admin-profile-details">
-                      <div>
-                        <strong>Full Name</strong>
-                        <span>{profileForm.name}</span>
+                      <button
+                        type="button"
+                        className="admin-profile-edit-button"
+                        onClick={() => setIsEditingProfile(true)}
+                      >
+                        Edit Profile
+                      </button>
+                    </section>
+                  ) : (
+                    <section className="admin-panel admin-profile-edit-card">
+                      <div className="admin-panel-heading">
+                        <h2>Admin Profile</h2>
+                        <span>Update your account details</span>
                       </div>
-                      <div>
-                        <strong>Email</strong>
-                        <span>{profileForm.email}</span>
-                      </div>
-                      <div>
-                        <strong>Phone Number</strong>
-                        <span>{profileForm.phone || "Not available"}</span>
-                      </div>
-                      <div>
-                        <strong>Account Status</strong>
-                        <span>{profileForm.accountStatus}</span>
-                      </div>
-                      <div>
-                        <strong>Join Date</strong>
-                        <span>{profileForm.joinDate}</span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="admin-profile-edit-button"
-                      onClick={() => setIsEditingProfile(true)}
-                    >
-                      Edit Profile
-                    </button>
-                  </section>
-
-                  <section className="admin-panel admin-profile-edit-card">
-                    <div className="admin-panel-heading">
-                      <h2>Admin Profile</h2>
-                      <span>Update your account details</span>
-                    </div>
-                    {isEditingProfile ? (
                       <form onSubmit={handleProfileSave} className="admin-profile-form">
                         <label>
                           Profile Photo
@@ -1018,12 +1018,8 @@ function AdminDashboardPage({ setPage }) {
                           </button>
                         </div>
                       </form>
-                    ) : (
-                      <div className="admin-profile-empty">
-                        Click "Edit Profile" to update your name, email, phone number, or profile picture.
-                      </div>
-                    )}
-                  </section>
+                    </section>
+                  )}
                 </div>
               </section>
             )}
