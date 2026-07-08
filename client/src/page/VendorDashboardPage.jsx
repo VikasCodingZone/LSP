@@ -13,11 +13,19 @@ const getStoredVendor = () => {
     return {
       name: user.name || "Campus Cafe",
       email: user.email || "vendor@campus.edu",
+      phone: user.phone || "",
+      profilePicture: user.profilePicture || "",
+      accountStatus: user.accountStatus || "Active",
+      createdAt: user.createdAt || "",
     };
   } catch {
     return {
       name: "Campus Cafe",
       email: "vendor@campus.edu",
+      phone: "",
+      profilePicture: "",
+      accountStatus: "Active",
+      createdAt: "",
     };
   }
 };
@@ -67,7 +75,7 @@ function VendorDashboardPage({ setPage }) {
           )}
           {activeView === "qr" && <VendorQrCodePage />}
           {activeView === "transactions" && <VendorTransactionsPage />}
-          {activeView === "settings" && (
+          {activeView === "profile" && (
             <VendorSettingsPage vendor={vendor} onProfileChange={setVendor} />
           )}
         </main>

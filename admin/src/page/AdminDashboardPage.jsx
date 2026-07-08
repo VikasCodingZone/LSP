@@ -101,7 +101,6 @@ const buildProfileForm = (user = {}) => ({
   name: user.name || "Admin User",
   email: user.email || "admin@campuswallet.com",
   phone: user.phone || "",
-  photo: user.profilePicture || "",
   accountStatus: user.accountStatus || "Active",
   joinDate:
     user.joinDate ||
@@ -118,6 +117,20 @@ const buildProfileForm = (user = {}) => ({
         })),
 });
 
+const getInitials = (name = "") => {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) return "A";
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+};
+
 function AdminDashboardPage({ setPage }) {
   const [activeView, setActiveView] = useState("dashboard");
   const [stats, setStats] = useState(null);
@@ -133,7 +146,7 @@ function AdminDashboardPage({ setPage }) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [transactionTab, setTransactionTab] = useState("student");
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
@@ -322,14 +335,9 @@ function AdminDashboardPage({ setPage }) {
     setProfileForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleProfileImage = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setProfileForm((prev) => ({ ...prev, photo: reader.result }));
-    };
-    reader.readAsDataURL(file);
+  const handleProfileCancel = () => {
+    setProfileForm(buildProfileForm(admin));
+    setIsProfileEditing(false);
   };
 
   const handleProfileSave = async (event) => {
@@ -349,7 +357,7 @@ function AdminDashboardPage({ setPage }) {
           name: profileForm.name.trim(),
           email: profileForm.email.trim(),
           phone: profileForm.phone.trim(),
-          profilePicture: profileForm.photo,
+          profilePicture: "",
         },
         token
       );
@@ -359,8 +367,8 @@ function AdminDashboardPage({ setPage }) {
       setAdmin(safeUser);
       setProfileForm(buildProfileForm(safeUser));
       localStorage.setItem("cpacUser", JSON.stringify(safeUser));
-      setIsEditingProfile(false);
       showMessage("Profile updated successfully.");
+      setIsProfileEditing(false);
     } catch (saveError) {
       showError(saveError.message);
     }
@@ -496,8 +504,9 @@ function AdminDashboardPage({ setPage }) {
 
   const pendingWalletRequests = walletRequests.filter((request) => request.status === "pending").length;
   const adminDisplayName = admin.name || "Admin User";
-  const adminPhoto = admin.profilePicture || "";
-  const adminInitial = adminDisplayName.charAt(0).toUpperCase();
+  const adminInitials = getInitials(adminDisplayName);
+  const profileFormInitials = getInitials(profileForm.name);
+  const adminDetails = buildProfileForm(admin);
 
   const filteredTransactions = transactions.filter((transaction) => {
     const type = String(transaction.type || "").toLowerCase();
@@ -539,7 +548,12 @@ function AdminDashboardPage({ setPage }) {
               className={activeView === view ? "active" : ""}
               key={view}
               type="button"
-              onClick={() => setActiveView(view)}
+              onClick={() => {
+                setActiveView(view);
+                if (view === "profile") {
+                  setIsProfileEditing(false);
+                }
+              }}
             >
               <AdminIcon type={icon} />
               {label}
@@ -567,7 +581,11 @@ function AdminDashboardPage({ setPage }) {
                     ? "Wallet Management"
                     : activeView === "dashboard"
                       ? "Dashboard"
-                      : pageTitle(activeView)}
+                      : activeView === "profile"
+                        ? isProfileEditing
+                          ? "Edit Profile"
+                          : "Profile"
+                        : pageTitle(activeView)}
             </h1>
             <p>{activeView === "students" ? "Manage students and wallet balances" : today}</p>
           </div>
@@ -628,11 +646,7 @@ function AdminDashboardPage({ setPage }) {
                   <span>Administrator</span>
                 </div>
                 <span className="profile-avatar">
-                  {adminPhoto ? (
-                    <img src={adminPhoto} alt={`${adminDisplayName} profile`} />
-                  ) : (
-                    <AdminIcon type="user" />
-                  )}
+                  {adminInitials}
                 </span>
               </div>
 
@@ -640,11 +654,7 @@ function AdminDashboardPage({ setPage }) {
                 <div className="profile-dropdown">
                   <div className="profile-dropdown-info">
                     <span className="profile-dropdown-avatar">
-                      {adminPhoto ? (
-                        <img src={adminPhoto} alt={`${adminDisplayName} profile`} />
-                      ) : (
-                        adminInitial
-                      )}
+                      {adminInitials}
                     </span>
                     <strong>{adminDisplayName}</strong>
                     <span className="email">{admin.email || "admin@campuswallet.com"}</span>
@@ -926,64 +936,65 @@ function AdminDashboardPage({ setPage }) {
 
             {activeView === "profile" && (
               <section className="admin-profile-page">
-                <div className={`admin-profile-grid ${isEditingProfile ? "is-editing" : ""}`}>
-                  {!isEditingProfile ? (
+                {!isProfileEditing && (
+                  <div className="admin-profile-grid">
                     <section className="admin-panel admin-profile-card">
-                      <div className="admin-profile-top">
-                        <div className="admin-profile-photo">
-                          {profileForm.photo ? (
-                            <img src={profileForm.photo} alt="Profile" />
-                          ) : (
-                            <span>{(profileForm.name || "A").charAt(0).toUpperCase()}</span>
-                          )}
+                      <div className="admin-profile-hero">
+                        <div
+                          className="admin-profile-large-photo"
+                          aria-label={`${adminDisplayName} initials`}
+                        >
+                          <span>{adminInitials}</span>
                         </div>
-                        <div>
-                          <h2>{profileForm.name}</h2>
-                          <p>{profileForm.email}</p>
-                          <span>Administrator</span>
-                        </div>
+                        <h2>{adminDisplayName}</h2>
+                        <span>Administrator</span>
                       </div>
-                      <div className="admin-profile-details">
-                        <div>
-                          <strong>Full Name</strong>
-                          <span>{profileForm.name}</span>
-                        </div>
-                        <div>
-                          <strong>Email</strong>
-                          <span>{profileForm.email}</span>
-                        </div>
-                        <div>
-                          <strong>Phone Number</strong>
-                          <span>{profileForm.phone || "Not available"}</span>
-                        </div>
-                        <div>
-                          <strong>Account Status</strong>
-                          <span>{profileForm.accountStatus}</span>
-                        </div>
-                        <div>
-                          <strong>Join Date</strong>
-                          <span>{profileForm.joinDate}</span>
-                        </div>
+
+                      <div className="admin-profile-detail-grid">
+                        {[
+                          ["Full Name", adminDetails.name],
+                          ["Role", "Administrator"],
+                          ["Email", adminDetails.email],
+                          ["Phone Number", adminDetails.phone || "Not available"],
+                          ["Account Status", adminDetails.accountStatus || "Active"],
+                          ["Join Date", adminDetails.joinDate],
+                        ].map(([label, value]) => (
+                          <div className="admin-profile-detail-tile" key={label}>
+                            <strong>{label}</strong>
+                            <span className={label === "Account Status" ? "status-value" : ""}>{value}</span>
+                          </div>
+                        ))}
                       </div>
+
                       <button
-                        type="button"
                         className="admin-profile-edit-button"
-                        onClick={() => setIsEditingProfile(true)}
+                        type="button"
+                        onClick={() => setIsProfileEditing(true)}
                       >
                         Edit Profile
                       </button>
                     </section>
-                  ) : (
+                  </div>
+                )}
+
+                {isProfileEditing && (
+                  <div className="admin-profile-grid is-editing">
                     <section className="admin-panel admin-profile-edit-card">
                       <div className="admin-panel-heading">
-                        <h2>Admin Profile</h2>
-                        <span>Update your account details</span>
+                        <div>
+                          <h2>Edit Profile</h2>
+                          <span>Update your admin account details</span>
+                        </div>
                       </div>
                       <form onSubmit={handleProfileSave} className="admin-profile-form">
-                        <label>
-                          Profile Photo
-                          <input type="file" accept="image/*" onChange={handleProfileImage} />
-                        </label>
+                        <div className="admin-profile-photo-editor">
+                          <div
+                            className="admin-profile-photo-preview"
+                            aria-label={`${profileForm.name || "Admin"} initials`}
+                          >
+                            <span>{profileFormInitials}</span>
+                          </div>
+                        </div>
                         <label>
                           Full Name
                           <input
@@ -1009,18 +1020,19 @@ function AdminDashboardPage({ setPage }) {
                             name="phone"
                             value={profileForm.phone}
                             onChange={handleProfileChange}
+                            placeholder="Enter phone number"
                           />
                         </label>
                         <div className="admin-profile-form-actions">
                           <button type="submit">Save Changes</button>
-                          <button type="button" onClick={() => setIsEditingProfile(false)}>
+                          <button type="button" onClick={handleProfileCancel}>
                             Cancel
                           </button>
                         </div>
                       </form>
                     </section>
-                  )}
-                </div>
+                  </div>
+                )}
               </section>
             )}
 

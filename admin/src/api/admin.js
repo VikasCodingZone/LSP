@@ -1,5 +1,7 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5050/api/v1";
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URLS = configuredApiBaseUrl
+  ? [configuredApiBaseUrl]
+  : ["http://127.0.0.1:5050/api/v1", "http://127.0.0.1:5000/api/v1"];
 
 const getToken = () => localStorage.getItem("cpacToken");
 
@@ -16,7 +18,22 @@ const request = async (path, payload, options = {}) => {
     requestOptions.body = JSON.stringify(payload);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, requestOptions);
+  let response;
+  let networkError;
+
+  for (const baseUrl of API_BASE_URLS) {
+    try {
+      response = await fetch(`${baseUrl}${path}`, requestOptions);
+      break;
+    } catch (error) {
+      networkError = error;
+    }
+  }
+
+  if (!response) {
+    throw new Error(networkError?.message || "API server is not reachable");
+  }
+
   const data = await response.json();
 
   if (!response.ok) {

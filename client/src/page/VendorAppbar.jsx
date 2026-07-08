@@ -48,6 +48,8 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
 
   const displayName = vendor.name || "Campus Cafe";
   const displayEmail = vendor.email || "vendor@campus.edu";
+  const displayPhoto = vendor.profilePicture || "";
+  const displayInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="vendor-appbar">
@@ -111,7 +113,11 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
               <span>{displayEmail}</span>
             </div>
             <span className="vendor-avatar">
-              <Icon type="user" />
+              {displayPhoto ? (
+                <img src={displayPhoto} alt={`${displayName} profile`} />
+              ) : (
+                <Icon type="user" />
+              )}
             </span>
           </div>
 
@@ -119,7 +125,11 @@ function VendorAppbar({ title, vendor = {}, onLogout }) {
             <div className="profile-dropdown">
               <div className="profile-dropdown-info">
                 <span className="profile-dropdown-avatar">
-                  {displayName.charAt(0).toUpperCase()}
+                  {displayPhoto ? (
+                    <img src={displayPhoto} alt={`${displayName} profile`} />
+                  ) : (
+                    displayInitial
+                  )}
                 </span>
                 <strong>{displayName}</strong>
                 <span className="email">{displayEmail}</span>
