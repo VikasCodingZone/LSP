@@ -62,6 +62,8 @@ export const addMoneyToStudent = (payload) =>
 
 export const getAdminTransactions = () => request("/admin/transactions");
 
+export const getAdminNotifications = () => request("/admin/notifications");
+
 export const getAdminWalletRequests = () => request("/admin/wallet/requests");
 
 export const updateWalletRequestStatus = (id, payload) =>

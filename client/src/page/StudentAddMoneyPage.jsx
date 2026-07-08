@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Icon } from "./StudentIcon";
 import StudentHeader from "./StudentHeader";
 import { createWalletRequest, getWalletRequests } from "../api/auth";
@@ -40,7 +40,7 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
 
   const token = localStorage.getItem("cpacToken");
 
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     try {
       if (!token) return;
       const res = await getWalletRequests(token);
@@ -50,14 +50,16 @@ function StudentAddMoneyPage({ student, onLogout, refreshProfile }) {
     } catch (err) {
       console.error("Failed to load wallet requests:", err);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
-    loadRequests();
-    if (refreshProfile) {
-      refreshProfile();
-    }
-  }, []);
+    const timer = window.setTimeout(() => {
+      loadRequests();
+      refreshProfile?.();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [loadRequests, refreshProfile]);
 
   const handleSubmit = async () => {
     setSuccessMessage("");

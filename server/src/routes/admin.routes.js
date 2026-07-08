@@ -8,6 +8,7 @@ const {
   getVendors,
   rejectVendor,
   getAdminWalletRequests,
+  getNotifications,
   updateWalletRequestStatus,
 } = require("../controllers/admin.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
@@ -23,6 +24,7 @@ router.put("/vendor/:id/approve", approveVendor);
 router.put("/vendor/:id/reject", rejectVendor);
 router.post("/add-money", addMoney);
 router.get("/transactions", getTransactions);
+router.get("/notifications", getNotifications);
 router.get("/wallet/requests", getAdminWalletRequests);
 router.put("/wallet/request/:id", updateWalletRequestStatus);
 

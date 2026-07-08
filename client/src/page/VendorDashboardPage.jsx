@@ -11,21 +11,25 @@ const getStoredVendor = () => {
   try {
     const user = JSON.parse(localStorage.getItem("cpacUser") || "{}");
     return {
+      _id: user._id || user.id || user.email || "VEN001",
       name: user.name || "Campus Cafe",
       email: user.email || "vendor@campus.edu",
       phone: user.phone || "",
       profilePicture: user.profilePicture || "",
       accountStatus: user.accountStatus || "Active",
       createdAt: user.createdAt || "",
+      vendorStatus: user.vendorStatus || "approved",
     };
   } catch {
     return {
+      _id: "VEN001",
       name: "Campus Cafe",
       email: "vendor@campus.edu",
       phone: "",
       profilePicture: "",
       accountStatus: "Active",
       createdAt: "",
+      vendorStatus: "approved",
     };
   }
 };
@@ -73,7 +77,7 @@ function VendorDashboardPage({ setPage }) {
           {activeView === "dashboard" && (
             <VendorDashboardHomePage onShowTransactions={() => setActiveView("transactions")} />
           )}
-          {activeView === "qr" && <VendorQrCodePage />}
+          {activeView === "qr" && <VendorQrCodePage vendor={vendor} />}
           {activeView === "transactions" && <VendorTransactionsPage />}
           {activeView === "profile" && (
             <VendorSettingsPage vendor={vendor} onProfileChange={setVendor} />

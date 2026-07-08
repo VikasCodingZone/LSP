@@ -62,3 +62,9 @@ export const createWalletRequest = (payload, token) =>
 
 export const getWalletRequests = (token) =>
   request("/auth/wallet/requests", undefined, { method: "GET", token });
+
+export const createPayment = (payload, token) =>
+  request("/auth/payment", payload, { method: "POST", token });
+
+export const getNotifications = (token) =>
+  request("/auth/notifications", undefined, { method: "GET", token });

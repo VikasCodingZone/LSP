@@ -1,20 +1,106 @@
+import { useMemo, useState } from "react";
 import { Icon } from "./VendorIcon";
+import {
+  createQrSvg,
+  createVendorPaymentPayload,
+  svgToDataUri,
+} from "../utils/qrCode";
 
-function VendorQrCodePage() {
+const formatDateTime = (date) =>
+  new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+
+const createFileName = (vendor) => {
+  const vendorId = vendor._id || vendor.id || vendor.email || "vendor";
+  const safeName = `${vendor.name || "vendor"}-${vendorId}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  return `${safeName || "vendor"}-payment-qr.svg`;
+};
+
+function VendorQrCodePage({ vendor = {} }) {
+  const [generatedAt, setGeneratedAt] = useState(() => new Date());
+  const [isGenerated, setIsGenerated] = useState(false);
+  const vendorId = vendor._id || vendor.id || vendor.email || "VEN001";
+  const shopName = vendor.name || "Campus Cafe";
+  const qrStatus =
+    vendor.vendorStatus === "rejected" ? "Inactive" : isGenerated ? "Active" : "Ready";
+  const payload = useMemo(
+    () => createVendorPaymentPayload({ ...vendor, _id: vendorId, name: shopName }),
+    [shopName, vendor, vendorId]
+  );
+  const qrSvg = useMemo(
+    () =>
+      createQrSvg(payload, {
+        title: shopName,
+        subtitle: `Vendor ID: ${vendorId}`,
+        footer: "Campus Wallet payment QR",
+        includeDetails: false,
+      }),
+    [payload, shopName, vendorId]
+  );
+  const qrPreview = useMemo(() => svgToDataUri(qrSvg), [qrSvg]);
+
+  const handleGenerate = () => {
+    setGeneratedAt(new Date());
+    setIsGenerated(true);
+  };
+
+  const handleDownload = () => {
+    if (!isGenerated) return;
+
+    const downloadableSvg = createQrSvg(payload, {
+      title: shopName,
+      subtitle: `Vendor ID: ${vendorId}`,
+      footer: `Generated: ${formatDateTime(generatedAt)}`,
+      moduleSize: 10,
+      includeDetails: true,
+    });
+    const blob = new Blob([downloadableSvg], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = createFileName({ ...vendor, _id: vendorId, name: shopName });
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <section className="vendor-qr-management" aria-label="Vendor QR code management">
       <div className="vendor-qr-main-card">
         <h2>Your Payment QR Code</h2>
         <div className="vendor-qr-code-frame">
-          <Icon type="qr" />
+          {isGenerated ? (
+            <img src={qrPreview} alt={`${shopName} payment QR code`} />
+          ) : (
+            <div className="vendor-qr-placeholder">
+              <Icon type="qr" />
+              <span>Generate QR</span>
+            </div>
+          )}
         </div>
-        <button className="vendor-download-button" type="button">
+        <p className="vendor-qr-caption">
+          {isGenerated ? `Scan to pay ${shopName}` : `Create a payment QR for ${shopName}`}
+        </p>
+        <button
+          className="vendor-download-button"
+          type="button"
+          onClick={handleDownload}
+          disabled={!isGenerated}
+        >
           <Icon type="download" />
           Download QR Code
         </button>
-        <button className="vendor-generate-button" type="button">
+        <button className="vendor-generate-button" type="button" onClick={handleGenerate}>
           <Icon type="refresh" />
-          Generate New QR
+          Generate QR Code
         </button>
       </div>
 
@@ -24,19 +110,19 @@ function VendorQrCodePage() {
           <dl>
             <div>
               <dt>Vendor ID</dt>
-              <dd>VEN001</dd>
+              <dd>{vendorId}</dd>
             </div>
             <div>
               <dt>Shop Name</dt>
-              <dd>Campus Cafe</dd>
+              <dd>{shopName}</dd>
             </div>
             <div>
               <dt>QR Status</dt>
-              <dd><span className="vendor-active-pill">Active</span></dd>
+              <dd><span className="vendor-active-pill">{qrStatus}</span></dd>
             </div>
             <div>
               <dt>Last Updated</dt>
-              <dd>May 28, 2026</dd>
+              <dd>{isGenerated ? formatDateTime(generatedAt) : "Not generated yet"}</dd>
             </div>
           </dl>
         </section>

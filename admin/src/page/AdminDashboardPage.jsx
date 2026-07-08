@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   approveVendor,
+  getAdminNotifications,
   getAdminStats,
   getAdminStudents,
   getAdminTransactions,
@@ -13,6 +14,19 @@ import { getProfile, updateProfile } from "../api/auth";
 
 const formatNumber = (value) => new Intl.NumberFormat("en-US").format(Number(value || 0));
 const formatMoney = (value) => `$${formatNumber(Math.round(Number(value || 0)))}`;
+const ADMIN_DISMISSED_NOTIFICATIONS_KEY = "cpacAdminDismissedNotificationIds";
+
+const getDismissedNotificationIds = (storageKey) => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(storageKey) || "[]").map(String));
+  } catch {
+    return new Set();
+  }
+};
+
+const saveDismissedNotificationIds = (storageKey, ids) => {
+  localStorage.setItem(storageKey, JSON.stringify([...ids]));
+};
 
 const fallbackTransactions = [
   ["TXN001", "John Doe", "Campus Cafe", "$12.50", "Completed", "2 mins ago"],
@@ -82,13 +96,6 @@ const fallbackVendors = [
   },
 ];
 
-const defaultNotifications = [
-  { id: 1, text: "Wallet Recharge: Your request for $50.00 was approved.", time: "May 28, 2026 at 10:30 AM" },
-  { id: 2, text: "Payment Successful: Paid $12.50 to Campus Cafe.", time: "May 28, 2026 at 2:30 PM" },
-  { id: 3, text: "Low Balance Alert: Your balance is below $20.00.", time: "May 24, 2026 at 1:00 PM" },
-  { id: 4, text: "Welcome to Campus Wallet! Start scan & pay on campus.", time: "May 20, 2026 at 9:00 AM" },
-];
-
 const getStoredAdmin = () => {
   try {
     return JSON.parse(localStorage.getItem("cpacUser") || "{}");
@@ -142,15 +149,17 @@ function AdminDashboardPage({ setPage }) {
   const [error, setError] = useState({ text: "", view: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [walletRequests, setWalletRequests] = useState([]);
-  const [notifications, setNotifications] = useState(defaultNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [transactionTab, setTransactionTab] = useState("student");
   const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const [dashboardModal, setDashboardModal] = useState({ type: "", selectedId: "" });
 
   const notifRef = useRef(null);
   const profileRef = useRef(null);
   const activeViewRef = useRef(activeView);
+  const dismissedNotificationIdsRef = useRef(getDismissedNotificationIds(ADMIN_DISMISSED_NOTIFICATIONS_KEY));
 
   const [admin, setAdmin] = useState(getStoredAdmin);
 
@@ -173,6 +182,12 @@ function AdminDashboardPage({ setPage }) {
   const showError = useCallback((text) => {
     setError({ text, view: activeViewRef.current });
     setMessage({ text: "", view: "" });
+  }, []);
+
+  const applyNotifications = useCallback((nextNotifications = []) => {
+    setNotifications(
+      nextNotifications.filter((notif) => !dismissedNotificationIdsRef.current.has(String(notif.id)))
+    );
   }, []);
 
   useEffect(() => {
@@ -200,18 +215,27 @@ function AdminDashboardPage({ setPage }) {
     setError({ text: "", view: "" });
 
     try {
-      const [statsData, studentsData, vendorsData, transactionsData, walletRequestsData] = await Promise.all([
+      const [
+        statsData,
+        studentsData,
+        vendorsData,
+        transactionsData,
+        walletRequestsData,
+        notificationsData,
+      ] = await Promise.all([
         getAdminStats(),
         getAdminStudents(query),
         getAdminVendors(query),
         getAdminTransactions(),
         getAdminWalletRequests(),
+        getAdminNotifications(),
       ]);
 
       setStats(statsData.stats);
       setStudents(studentsData.students || []);
       setVendors(vendorsData.vendors || []);
       setTransactions(transactionsData.transactions || []);
+      applyNotifications(notificationsData.notifications || []);
 
       const formattedRequests = (walletRequestsData.requests || []).map((req) => {
         const date = new Date(req.createdAt);
@@ -231,7 +255,16 @@ function AdminDashboardPage({ setPage }) {
     } finally {
       setIsLoading(false);
     }
-  }, [showError]);
+  }, [applyNotifications, showError]);
+
+  const loadAdminNotifications = useCallback(async () => {
+    try {
+      const data = await getAdminNotifications();
+      applyNotifications(data.notifications || []);
+    } catch (notificationError) {
+      console.error("Failed to load admin notifications:", notificationError);
+    }
+  }, [applyNotifications]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -240,6 +273,12 @@ function AdminDashboardPage({ setPage }) {
 
     return () => window.clearTimeout(timer);
   }, [loadAdminData]);
+
+  useEffect(() => {
+    const timer = window.setInterval(loadAdminNotifications, 15000);
+
+    return () => window.clearInterval(timer);
+  }, [loadAdminNotifications]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -277,6 +316,7 @@ function AdminDashboardPage({ setPage }) {
       if (event.key === "Escape") {
         setIsNotifOpen(false);
         setIsProfileOpen(false);
+        setDashboardModal({ type: "", selectedId: "" });
       }
     }
 
@@ -327,6 +367,8 @@ function AdminDashboardPage({ setPage }) {
   };
 
   const handleClearNotif = () => {
+    notifications.forEach((notif) => dismissedNotificationIdsRef.current.add(String(notif.id)));
+    saveDismissedNotificationIds(ADMIN_DISMISSED_NOTIFICATIONS_KEY, dismissedNotificationIdsRef.current);
     setNotifications([]);
   };
 
@@ -388,6 +430,7 @@ function AdminDashboardPage({ setPage }) {
       trend: "12% vs last month",
       icon: "students",
       tone: "blue",
+      modalType: "students",
     },
     {
       label: "Total Vendors",
@@ -395,6 +438,7 @@ function AdminDashboardPage({ setPage }) {
       trend: "5% vs last month",
       icon: "store",
       tone: "cyan",
+      modalType: "vendors",
     },
     {
       label: "Total Transactions",
@@ -431,13 +475,14 @@ function AdminDashboardPage({ setPage }) {
       })
     : fallbackTransactions;
   const visibleStudents = students.length ? students : fallbackStudents;
+  const getStudentDisplayId = (student, index) =>
+    student._id?.startsWith("STU") ? student._id : `STU${String(index + 12345)}`;
+
   const filteredStudents = visibleStudents.filter((student, index) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
 
-    const studentId = student._id?.startsWith("STU")
-      ? student._id
-      : `STU${String(index + 12345)}`;
+    const studentId = getStudentDisplayId(student, index);
 
     return [
       student.name,
@@ -460,13 +505,14 @@ function AdminDashboardPage({ setPage }) {
     ["Avg. Balance", `$${averageStudentBalance.toFixed(2)}`],
   ];
   const visibleVendors = vendors.length ? vendors : fallbackVendors;
+  const getVendorDisplayId = (vendor, index) =>
+    vendor._id?.startsWith("V") ? vendor._id : `V${String(index + 1).padStart(3, "0")}`;
+
   const filteredVendors = visibleVendors.filter((vendor, index) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
 
-    const vendorId = vendor._id?.startsWith("V")
-      ? vendor._id
-      : `V${String(index + 1).padStart(3, "0")}`;
+    const vendorId = getVendorDisplayId(vendor, index);
 
     return [
       vendor.name,
@@ -507,6 +553,11 @@ function AdminDashboardPage({ setPage }) {
   const adminInitials = getInitials(adminDisplayName);
   const profileFormInitials = getInitials(profileForm.name);
   const adminDetails = buildProfileForm(admin);
+  const dashboardModalItems = dashboardModal.type === "students" ? visibleStudents : visibleVendors;
+  const dashboardModalSelected =
+    dashboardModal.type === "students"
+      ? visibleStudents.find((student, index) => getStudentDisplayId(student, index) === dashboardModal.selectedId)
+      : visibleVendors.find((vendor, index) => getVendorDisplayId(vendor, index) === dashboardModal.selectedId);
 
   const filteredTransactions = transactions.filter((transaction) => {
     const type = String(transaction.type || "").toLowerCase();
@@ -681,19 +732,51 @@ function AdminDashboardPage({ setPage }) {
             {activeView === "dashboard" && (
               <>
                 <section className="admin-stats-grid" aria-label="Dashboard statistics">
-                  {statCards.map((card) => (
-                    <article className="admin-stat-card" key={card.label}>
-                      <div>
-                        <span>{card.label}</span>
-                        <strong>{card.value}</strong>
-                        <em>↑ {card.trend}</em>
-                      </div>
-                      <span className={`admin-stat-icon ${card.tone}`}>
-                        <AdminIcon type={card.icon} />
-                      </span>
-                    </article>
-                  ))}
+                  {statCards.map((card) => {
+                    const CardElement = card.modalType ? "button" : "article";
+
+                    return (
+                      <CardElement
+                        className={`admin-stat-card${card.modalType ? " admin-stat-card-button" : ""}`}
+                        key={card.label}
+                        type={card.modalType ? "button" : undefined}
+                        onClick={
+                          card.modalType
+                            ? () => setDashboardModal({ type: card.modalType, selectedId: "" })
+                            : undefined
+                        }
+                        aria-label={card.modalType ? `Show ${card.label.toLowerCase()} list` : undefined}
+                      >
+                        <div>
+                          <span>{card.label}</span>
+                          <strong>{card.value}</strong>
+                          <em>↑ {card.trend}</em>
+                        </div>
+                        <span className={`admin-stat-icon ${card.tone}`}>
+                          <AdminIcon type={card.icon} />
+                        </span>
+                      </CardElement>
+                    );
+                  })}
                 </section>
+
+                {dashboardModal.type && (
+                  <DashboardEntityModal
+                    type={dashboardModal.type}
+                    items={dashboardModalItems}
+                    selected={dashboardModalSelected}
+                    selectedId={dashboardModal.selectedId}
+                    getDisplayId={
+                      dashboardModal.type === "students" ? getStudentDisplayId : getVendorDisplayId
+                    }
+                    getVendorSales={getVendorSales}
+                    getVendorStatusLabel={getVendorStatusLabel}
+                    onSelect={(selectedId) =>
+                      setDashboardModal((current) => ({ ...current, selectedId }))
+                    }
+                    onClose={() => setDashboardModal({ type: "", selectedId: "" })}
+                  />
+                )}
 
                 <section className="admin-recent-section">
                   <div className="admin-section-title">
@@ -755,9 +838,7 @@ function AdminDashboardPage({ setPage }) {
                       </thead>
                       <tbody>
                         {filteredStudents.map((student, index) => {
-                          const studentId = student._id?.startsWith("STU")
-                            ? student._id
-                            : `STU${String(index + 12345)}`;
+                          const studentId = getStudentDisplayId(student, index);
 
                           return (
                             <tr key={student._id || student.email}>
@@ -838,9 +919,7 @@ function AdminDashboardPage({ setPage }) {
                       <tbody>
                         {filteredVendors.map((vendor, index) => {
                           const statusLabel = getVendorStatusLabel(vendor.vendorStatus);
-                          const vendorId = vendor._id?.startsWith("V")
-                            ? vendor._id
-                            : `V${String(index + 1).padStart(3, "0")}`;
+                          const vendorId = getVendorDisplayId(vendor, index);
 
                           return (
                             <tr key={vendor._id || vendor.email}>
@@ -1138,6 +1217,163 @@ function AdminDashboardPage({ setPage }) {
 
 function pageTitle(view) {
   return view.charAt(0).toUpperCase() + view.slice(1);
+}
+
+function DashboardEntityModal({
+  type,
+  items,
+  selected,
+  selectedId,
+  getDisplayId,
+  getVendorSales,
+  getVendorStatusLabel,
+  onSelect,
+  onClose,
+}) {
+  const isStudentList = type === "students";
+  const title = isStudentList ? "Total Students" : "Total Vendors";
+  const emptyText = isStudentList ? "No students found." : "No vendors found.";
+  const selectedIndex = items.findIndex((item, index) => getDisplayId(item, index) === selectedId);
+  const selectedDisplayId = selected ? getDisplayId(selected, selectedIndex) : "";
+
+  return (
+    <div className="dashboard-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className="dashboard-entity-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dashboard-entity-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header className="dashboard-modal-header">
+          <div>
+            <h2 id="dashboard-entity-title">{title}</h2>
+            <p>{formatNumber(items.length)} records</p>
+          </div>
+          <button className="dashboard-modal-close" type="button" aria-label="Close popup" onClick={onClose}>
+            <AdminIcon type="x" />
+          </button>
+        </header>
+
+        <div className="dashboard-modal-body">
+          <div className="dashboard-entity-list" aria-label={`${title} list`}>
+            {items.length === 0 ? (
+              <p className="dashboard-modal-empty">{emptyText}</p>
+            ) : (
+              items.map((item, index) => {
+                const displayId = getDisplayId(item, index);
+                const active = displayId === selectedId;
+
+                return (
+                  <button
+                    className={active ? "active" : ""}
+                    key={item._id || item.email || displayId}
+                    type="button"
+                    onClick={() => onSelect(displayId)}
+                  >
+                    <span className="dashboard-entity-avatar">
+                      <AdminIcon type={isStudentList ? "user" : "store"} />
+                    </span>
+                    <span>
+                      <strong>{item.name || item.owner || "Unnamed"}</strong>
+                      <em>{displayId}</em>
+                    </span>
+                    <b>
+                      {isStudentList
+                        ? `$${Number(item.walletBalance || 0).toFixed(2)}`
+                        : formatMoney(item.walletBalance || item.balance || item.currentBalance || 0)}
+                    </b>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          <div className="dashboard-entity-detail">
+            {selected ? (
+              isStudentList ? (
+                <>
+                  <div className="dashboard-detail-hero">
+                    <span>
+                      <AdminIcon type="user" />
+                    </span>
+                    <div>
+                      <strong>{selected.name || "Student"}</strong>
+                      <em>{selectedDisplayId}</em>
+                    </div>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Email</dt>
+                      <dd>{selected.email || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt>Phone</dt>
+                      <dd>{selected.phone || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt>Wallet Balance</dt>
+                      <dd className="wallet-highlight">{`$${Number(selected.walletBalance || 0).toFixed(2)}`}</dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>{selected.accountStatus || selected.status || "Active"}</dd>
+                    </div>
+                  </dl>
+                </>
+              ) : (
+                <>
+                  <div className="dashboard-detail-hero">
+                    <span>
+                      <AdminIcon type="store" />
+                    </span>
+                    <div>
+                      <strong>{selected.name || "Vendor"}</strong>
+                      <em>{selectedDisplayId}</em>
+                    </div>
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Owner</dt>
+                      <dd>{selected.owner || selected.name || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt>Email</dt>
+                      <dd>{selected.email || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt>Phone</dt>
+                      <dd>{selected.phone || "-"}</dd>
+                    </div>
+                    <div>
+                      <dt>Wallet Balance</dt>
+                      <dd className="wallet-highlight">
+                        {formatMoney(selected.walletBalance || selected.balance || selected.currentBalance || 0)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Total Sales</dt>
+                      <dd>{formatMoney(getVendorSales(selected))}</dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>{getVendorStatusLabel(selected.vendorStatus)}</dd>
+                    </div>
+                  </dl>
+                </>
+              )
+            ) : (
+              <div className="dashboard-detail-placeholder">
+                <AdminIcon type={isStudentList ? "students" : "store"} />
+                <strong>Select a {isStudentList ? "student" : "vendor"}</strong>
+                <span>Wallet and account details will appear here.</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function AdminTable({ columns, rows, emptyText }) {

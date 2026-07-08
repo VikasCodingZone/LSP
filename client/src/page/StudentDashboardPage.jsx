@@ -82,7 +82,6 @@ function StudentDashboardPage({ setPage }) {
   };
 
   const [pageTitle, pageSubtitle] = pageCopy[activeView] || pageCopy.dashboard;
-  const displayName = student.name.trim() || "Student";
 
   return (
     <div className="student-dashboard-page">
@@ -229,7 +228,9 @@ function StudentDashboardPage({ setPage }) {
             </>
           )}
 
-          {activeView === "scan" && <StudentScanPayPage student={student} />}
+          {activeView === "scan" && (
+            <StudentScanPayPage student={student} refreshProfile={fetchLatestProfile} />
+          )}
           {activeView === "transactions" && (
             <StudentTransactionsPage
               student={student}
